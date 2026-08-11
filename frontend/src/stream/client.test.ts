@@ -315,6 +315,39 @@ describe("StreamClient", () => {
       client.close();
     });
 
+    it("starts subscriptions fresh when endpoint resolution finds a new kernel launch", async () => {
+      vi.useFakeTimers();
+      let launch = 1;
+      const sockets: FakeSocket[] = [];
+      const client = new StreamClient({
+        resolveEndpoint: async () => endpoint({ token: `launch-${launch}` }),
+        socketFactory: (url) => {
+          const socket = new FakeSocket(url);
+          sockets.push(socket);
+          return socket;
+        },
+      });
+      client.subscribe(COUNTER, () => {});
+
+      client.connect();
+      await vi.runOnlyPendingTimersAsync();
+      sockets[0].open();
+      sockets[0].emitData(COUNTER, 7, 7);
+      sockets[0].die();
+      launch = 2;
+
+      await vi.advanceTimersByTimeAsync(MIN_BACKOFF_MS);
+      await vi.runOnlyPendingTimersAsync();
+      sockets[1].open();
+
+      expect(sockets[1].controls()).toEqual([
+        { type: "subscribe", channels: [{ channel: COUNTER, from_sequence: null }] },
+      ]);
+      sockets[1].emitData(COUNTER, 1, 1);
+      expect(client.lastSequence(COUNTER)).toBe(1);
+      client.close();
+    });
+
     it("keeps retrying while the kernel is unreachable, then connects when it returns", async () => {
       vi.useFakeTimers();
       const h = harness({ failEndpoint: true });

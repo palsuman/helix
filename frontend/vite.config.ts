@@ -5,6 +5,9 @@ import react from "@vitejs/plugin-react";
 // See design.md "Technology Stack" for the pinned dependency policy.
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __HELIX_IPC_E2E__: JSON.stringify(process.env.VITE_HELIX_IPC_E2E === "1"),
+  },
   clearScreen: false,
   server: {
     port: 1420,

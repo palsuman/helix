@@ -156,6 +156,13 @@ impl Debouncer {
         self.window
     }
 
+    /// Apply new timing to pending and future changes without resetting the
+    /// watcher metrics accumulated so far.
+    pub fn reconfigure(&mut self, window: Duration, max_hold: Duration) {
+        self.window = window;
+        self.max_hold = max_hold.max(window);
+    }
+
     pub fn pending_count(&self) -> usize {
         self.pending.len()
     }

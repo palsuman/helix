@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "tauri:dev": "node ../scripts/prepare-kernel-sidecar.mjs debug && cd ../crates/helix-supervisor && ../../frontend/node_modules/.bin/tauri dev",
+    "tauri:build": "node ../scripts/prepare-kernel-sidecar.mjs release && cd ../crates/helix-supervisor && ../../frontend/node_modules/.bin/tauri build",
+    "test:ipc-e2e": "node ../scripts/run-ipc-e2e.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",

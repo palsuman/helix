@@ -24,14 +24,17 @@
 //! the same close path — which is the point of making cleanup a registration
 //! rather than a list this module maintains.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use helix_config::ConfigService;
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
@@ -69,11 +72,16 @@ pub fn build_service(
 pub struct WatcherHook {
     fs: Arc<FileSystemService>,
     logger: Arc<Logger>,
+    roots: Mutex<HashMap<PathBuf, u32>>,
 }
 
 impl WatcherHook {
     pub fn new(fs: Arc<FileSystemService>, logger: Arc<Logger>) -> Self {
-        Self { fs, logger }
+        Self {
+            fs,
+            logger,
+            roots: Mutex::new(HashMap::new()),
+        }
     }
 }
 
@@ -83,7 +91,15 @@ impl WorkspaceHooks for WatcherHook {
     }
 
     fn root_opened(&self, event: &RootEvent<'_>) -> Result<(), AppError> {
+        let root = canonical_watch_root(event.root);
+        let mut roots = self.roots.lock().unwrap();
+        if let Some(refs) = roots.get_mut(&root) {
+            *refs += 1;
+            return Ok(());
+        }
+
         let report = self.fs.watch(event.root)?;
+        roots.insert(root, 1);
         if report.over_budget {
             // Not an error: the root is watched, just expensively. The watcher
             // already suggests exclusions, and refusing to open a large
@@ -101,10 +117,16 @@ impl WorkspaceHooks for WatcherHook {
     }
 
     fn root_closed(&self, event: &RootEvent<'_>) {
-        // A root shared with another open workspace is unwatched here and
-        // re-watched by that workspace's own binding on the next availability
-        // pass. Watching is idempotent, so the cost is one interval of missed
-        // events in a rare configuration, not a leaked registration.
+        let root = canonical_watch_root(event.root);
+        let mut roots = self.roots.lock().unwrap();
+        let Some(refs) = roots.get_mut(&root) else {
+            return;
+        };
+        if *refs > 1 {
+            *refs -= 1;
+            return;
+        }
+
         if let Err(error) = self.fs.unwatch(event.root) {
             log_warn!(
                 self.logger,
@@ -113,8 +135,14 @@ impl WorkspaceHooks for WatcherHook {
                 "root" => event.root.to_string_lossy().to_string(),
                 "error" => error.message.clone(),
             );
+            return;
         }
+        roots.remove(&root);
     }
+}
+
+fn canonical_watch_root(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
 /// Register the `workspace.*` commands on the kernel's dispatcher.
@@ -208,9 +236,18 @@ pub fn register_commands(dispatcher: &mut IpcDispatcher, workspace: Arc<Workspac
                 .as_deref()
                 .and_then(|path| workspace.owning_root(&req.key, path))
                 .map(|root| root.to_string_lossy().to_string());
-            let settings = workspace.settings_tree(&req.key, path.as_deref())?;
+            let settings = workspace.settings_tree_for_language(
+                &req.key,
+                path.as_deref(),
+                req.language.as_deref(),
+            )?;
             let value = match &req.setting {
-                Some(setting) => workspace.setting_value(&req.key, path.as_deref(), setting)?,
+                Some(setting) => workspace.setting_value_for_language(
+                    &req.key,
+                    path.as_deref(),
+                    setting,
+                    req.language.as_deref(),
+                )?,
                 None => None,
             };
             Ok::<WorkspaceSettingsResponse, AppError>(WorkspaceSettingsResponse {
@@ -289,6 +326,10 @@ pub struct WorkspaceKernelService {
     fs: Arc<FileSystemService>,
     logger: Arc<Logger>,
     retry_interval: Duration,
+    watcher_hook: Arc<WatcherHook>,
+    hook_registered: Arc<AtomicBool>,
+    bridge_registered: Arc<AtomicBool>,
+    settings_refresh_registered: Arc<AtomicBool>,
 }
 
 impl WorkspaceKernelService {
@@ -297,11 +338,36 @@ impl WorkspaceKernelService {
         fs: Arc<FileSystemService>,
         logger: Arc<Logger>,
     ) -> Self {
+        let watcher_hook = Arc::new(WatcherHook::new(fs.clone(), logger.clone()));
+        Self::with_registration_state(
+            workspace,
+            fs,
+            logger,
+            watcher_hook,
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+        )
+    }
+
+    fn with_registration_state(
+        workspace: Arc<WorkspaceService>,
+        fs: Arc<FileSystemService>,
+        logger: Arc<Logger>,
+        watcher_hook: Arc<WatcherHook>,
+        hook_registered: Arc<AtomicBool>,
+        bridge_registered: Arc<AtomicBool>,
+        settings_refresh_registered: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             workspace,
             fs,
             logger,
             retry_interval: DEFAULT_RETRY_INTERVAL,
+            watcher_hook,
+            hook_registered,
+            bridge_registered,
+            settings_refresh_registered,
         }
     }
 
@@ -340,18 +406,50 @@ impl Service for WorkspaceKernelService {
         // through this one.
         ctx.publish(self.workspace.clone());
 
-        self.workspace.add_hook(Arc::new(WatcherHook::new(
-            self.fs.clone(),
-            self.logger.clone(),
-        )));
+        if !self.hook_registered.swap(true, Ordering::SeqCst) {
+            self.workspace.add_hook(self.watcher_hook.clone());
+        }
 
-        if let Some(hub) = ctx.resolve::<StreamHub>() {
+        if let Some(hub) = ctx.resolve::<StreamHub>()
+            && !self.bridge_registered.swap(true, Ordering::SeqCst)
+        {
             let bridge_hub = hub.clone();
             let listener: WorkspaceListener = Arc::new(move |event: &WorkspaceEvent| {
                 let payload = serde_json::to_value(event).unwrap_or(serde_json::Value::Null);
                 bridge_hub.publish(CHANNEL, payload);
             });
             self.workspace.add_listener(listener);
+
+            let config_hub = hub.clone();
+            self.workspace.add_config_listener(Arc::new(move |change| {
+                let payload = serde_json::to_value(change).unwrap_or(serde_json::Value::Null);
+                config_hub.publish(helix_config::CHANNEL, payload);
+            }));
+        }
+
+        if !self
+            .settings_refresh_registered
+            .swap(true, Ordering::SeqCst)
+        {
+            if let Some(config) = ctx.resolve::<ConfigService>() {
+                let workspace = self.workspace.clone();
+                config.add_listener(Arc::new(move |_change| {
+                    workspace.refresh_settings();
+                }));
+            }
+
+            let workspace = self.workspace.clone();
+            self.fs.add_listener(Arc::new(move |changes| {
+                if changes.iter().any(|change| is_settings_file(&change.path)) {
+                    workspace.refresh_settings();
+                }
+                for change in changes
+                    .iter()
+                    .filter(|change| is_workspace_file(&change.path))
+                {
+                    workspace.refresh_document(Path::new(&change.path));
+                }
+            }));
         }
 
         log_info!(
@@ -457,6 +555,33 @@ impl HealthCheck for WorkspaceKernelService {
             error_count: metrics.document_write_errors + metrics.parse_errors + metrics.hook_errors,
         }
     }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_workspace = self.workspace.clone();
+        let health_fs = self.fs.clone();
+        let health_logger = self.logger.clone();
+        let metrics_workspace = self.workspace.clone();
+        let metrics_fs = self.fs.clone();
+        let metrics_logger = self.logger.clone();
+        Some(ServiceProbe::new(
+            move || {
+                WorkspaceKernelService::new(
+                    health_workspace.clone(),
+                    health_fs.clone(),
+                    health_logger.clone(),
+                )
+                .health()
+            },
+            move || {
+                WorkspaceKernelService::new(
+                    metrics_workspace.clone(),
+                    metrics_fs.clone(),
+                    metrics_logger.clone(),
+                )
+                .metrics()
+            },
+        ))
+    }
 }
 
 /// Register [`WorkspaceKernelService`] on a container as a supervised singleton.
@@ -466,6 +591,10 @@ pub fn register(
     fs: Arc<FileSystemService>,
     logger: Arc<Logger>,
 ) -> Result<(), ServiceError> {
+    let watcher_hook = Arc::new(WatcherHook::new(fs.clone(), logger.clone()));
+    let hook_registered = Arc::new(AtomicBool::new(false));
+    let bridge_registered = Arc::new(AtomicBool::new(false));
+    let settings_refresh_registered = Arc::new(AtomicBool::new(false));
     container.register(
         SERVICE_NAME,
         &[
@@ -476,13 +605,36 @@ pub fn register(
         ],
         Lifetime::Singleton,
         move |_ctx| {
-            Ok(Box::new(WorkspaceKernelService::new(
+            Ok(Box::new(WorkspaceKernelService::with_registration_state(
                 workspace.clone(),
                 fs.clone(),
                 logger.clone(),
+                watcher_hook.clone(),
+                hook_registered.clone(),
+                bridge_registered.clone(),
+                settings_refresh_registered.clone(),
             )) as Box<dyn ManagedService>)
         },
     )
+}
+
+fn is_settings_file(path: &str) -> bool {
+    let path = Path::new(path);
+    path.file_name().is_some_and(|name| name == "settings.json")
+        && path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == ".helix")
+}
+
+fn is_workspace_file(path: &str) -> bool {
+    let path = Path::new(path);
+    path.file_name()
+        .is_some_and(|name| name == "workspace.json")
+        && path
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == ".helix")
 }
 
 #[cfg(test)]
@@ -555,7 +707,10 @@ mod tests {
                 "id": "demo-workspace",
                 "name": "Payments",
                 "folders": [".", "../web"],
-                "settings": { "editor.tabSize": 2 }
+                "settings": {
+                    "editor.tabSize": 2,
+                    "[typescript].editor.fontSize": 18
+                }
             }"#,
         );
         // The `web` root has its own opinion, for its own files.
@@ -634,6 +789,38 @@ mod tests {
             .unwrap();
         assert_eq!(for_api["value"], 2, "the workspace value applies elsewhere");
 
+        let typescript = dispatcher
+            .dispatch(IpcRequest::new(
+                SETTINGS,
+                "ws-4-language",
+                serde_json::json!({
+                    "key": "demo-workspace",
+                    "path": api.join("app.ts").to_string_lossy(),
+                    "setting": "editor.fontSize",
+                    "language": "typescript",
+                }),
+            ))
+            .await
+            .result
+            .unwrap();
+        assert_eq!(typescript["value"], 18);
+
+        let rust = dispatcher
+            .dispatch(IpcRequest::new(
+                SETTINGS,
+                "ws-4-rust",
+                serde_json::json!({
+                    "key": "demo-workspace",
+                    "path": api.join("main.rs").to_string_lossy(),
+                    "setting": "editor.fontSize",
+                    "language": "rust",
+                }),
+            ))
+            .await
+            .result
+            .unwrap();
+        assert_eq!(rust["value"], 14);
+
         // 4. Remove one root and confirm its watcher is released.
         let removed = dispatcher
             .dispatch(IpcRequest::new(
@@ -664,6 +851,54 @@ mod tests {
             .map(|entry| entry["path"].as_str().unwrap().to_string())
             .collect();
         assert_eq!(folders, vec![".".to_string(), "../tools".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn invalid_embedded_workspace_settings_are_reported_and_ignored() {
+        let dir = TempDir::new("kernel-workspace-invalid-setting");
+        let api = dir.mkdir("api");
+        dir.write(
+            "api/.helix/workspace.json",
+            r#"{
+                "id": "invalid-setting",
+                "folders": ["."],
+                "settings": { "editor.tabSize": "wide" }
+            }"#,
+        );
+        let (workspace, _) = service(&dir, logger());
+        let dispatcher = dispatcher(workspace);
+
+        let opened = dispatcher
+            .dispatch(IpcRequest::new(
+                OPEN,
+                "invalid-setting-open",
+                serde_json::json!({ "roots": [api.to_string_lossy()] }),
+            ))
+            .await
+            .result
+            .unwrap();
+        assert!(
+            opened["workspace"]["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|issue| issue["kind"] == "invalid_setting"
+                    && issue["field"] == "settings.editor.tabSize")
+        );
+
+        let settings = dispatcher
+            .dispatch(IpcRequest::new(
+                SETTINGS,
+                "invalid-setting-read",
+                serde_json::json!({
+                    "key": "invalid-setting",
+                    "setting": "editor.tabSize"
+                }),
+            ))
+            .await
+            .result
+            .unwrap();
+        assert_eq!(settings["value"], 4);
     }
 
     #[tokio::test]
@@ -749,6 +984,10 @@ mod tests {
             .result
             .unwrap();
         assert_eq!(schema["schema"]["properties"]["folders"]["maxItems"], 20);
+        assert_eq!(
+            schema["schema"]["properties"]["settings"]["properties"]["editor.tabSize"]["type"],
+            "integer"
+        );
 
         let key = listed["workspaces"][0]["key"].as_str().unwrap().to_string();
         let forgotten = dispatcher
@@ -923,6 +1162,296 @@ mod tests {
             !watched(&fs, &api),
             "shutdown releases watchers rather than leaving them to process teardown"
         );
+    }
+
+    #[test]
+    fn overlapping_workspaces_share_one_watch_until_the_last_owner_closes() {
+        let dir = TempDir::new("kernel-workspace-shared-watch");
+        let api = dir.mkdir("api");
+        let web = dir.mkdir("web");
+        let shared = dir.mkdir("shared");
+        dir.write(
+            "api/.helix/workspace.json",
+            format!(
+                r#"{{ "id": "api-workspace", "folders": [{{ "path": "{}" }}] }}"#,
+                shared.display()
+            ),
+        );
+        dir.write(
+            "web/.helix/workspace.json",
+            format!(
+                r#"{{ "id": "web-workspace", "folders": [{{ "path": "{}" }}] }}"#,
+                shared.display()
+            ),
+        );
+
+        let logger = logger();
+        let (workspace, fs) = service(&dir, logger.clone());
+        workspace.add_hook(Arc::new(WatcherHook::new(fs.clone(), logger)));
+
+        let api_workspace = workspace.open(&[api], None).unwrap();
+        let web_workspace = workspace.open(&[web], None).unwrap();
+        assert_eq!(fs.watched_roots().len(), 3);
+        assert!(watched(&fs, &shared));
+
+        workspace.close(&api_workspace.key).unwrap();
+        assert!(
+            watched(&fs, &shared),
+            "closing one workspace must preserve a root owned by another"
+        );
+        assert_eq!(fs.watched_roots().len(), 2);
+
+        workspace.close(&web_workspace.key).unwrap();
+        assert!(!watched(&fs, &shared));
+        assert!(fs.watched_roots().is_empty());
+    }
+
+    #[tokio::test]
+    async fn replacement_service_reuses_the_existing_hook_and_change_bridge() {
+        let dir = TempDir::new("kernel-workspace-replacement");
+        let root = dir.mkdir("api");
+        let logger = logger();
+        let (workspace, fs) = service(&dir, logger.clone());
+        let hub = Arc::new(StreamHub::default());
+        let ctx = ServiceContext::new();
+        ctx.publish(hub.clone());
+        let watcher_hook = Arc::new(WatcherHook::new(fs.clone(), logger.clone()));
+        let hook_registered = Arc::new(AtomicBool::new(false));
+        let bridge_registered = Arc::new(AtomicBool::new(false));
+        let settings_refresh_registered = Arc::new(AtomicBool::new(false));
+
+        let mut first = WorkspaceKernelService::with_registration_state(
+            workspace.clone(),
+            fs.clone(),
+            logger.clone(),
+            watcher_hook.clone(),
+            hook_registered.clone(),
+            bridge_registered.clone(),
+            settings_refresh_registered.clone(),
+        );
+        first.start(&ctx).await.unwrap();
+        let mut replacement = WorkspaceKernelService::with_registration_state(
+            workspace.clone(),
+            fs.clone(),
+            logger,
+            watcher_hook,
+            hook_registered,
+            bridge_registered,
+            settings_refresh_registered,
+        );
+        replacement.start(&ctx).await.unwrap();
+
+        let opened = workspace.open(std::slice::from_ref(&root), None).unwrap();
+        assert!(watched(&fs, &root));
+        assert_eq!(
+            hub.next_sequence(CHANNEL),
+            2,
+            "one workspace change must publish exactly one frame after restart"
+        );
+
+        workspace.close(&opened.key).unwrap();
+        assert!(!watched(&fs, &root));
+    }
+
+    #[tokio::test]
+    async fn user_config_changes_refresh_an_open_workspace() {
+        let dir = TempDir::new("kernel-workspace-user-config-refresh");
+        let root = dir.mkdir("api");
+        let user_settings = dir.path().join("user-settings.json");
+        let logger = logger();
+        let config = Arc::new(ConfigService::load(
+            ConfigPaths {
+                user: Some(user_settings),
+                ..ConfigPaths::default()
+            },
+            Arc::new(SchemaRegistry::builtin()),
+            logger.clone(),
+        ));
+        let fs = crate::fs::build_service(&config, logger.clone());
+        let workspace = Arc::new(WorkspaceService::with_recent_path(
+            config.clone(),
+            fs.clone(),
+            logger.clone(),
+            Some(dir.path().join("recent.json")),
+        ));
+        let ctx = ServiceContext::new();
+        ctx.publish(config.clone());
+        let mut service = WorkspaceKernelService::new(workspace.clone(), fs, logger);
+        service.start(&ctx).await.unwrap();
+        let opened = workspace.open(std::slice::from_ref(&root), None).unwrap();
+
+        config
+            .set(
+                helix_config::ConfigScope::User,
+                "editor.fontSize",
+                serde_json::json!(23),
+                None,
+            )
+            .unwrap();
+
+        assert_eq!(
+            workspace
+                .setting_value(&opened.key, None, "editor.fontSize")
+                .unwrap(),
+            Some(serde_json::json!(23))
+        );
+    }
+
+    #[tokio::test]
+    async fn external_folder_settings_refresh_an_open_workspace() {
+        let dir = TempDir::new("kernel-workspace-folder-config-refresh");
+        let api = dir.mkdir("api");
+        let web = dir.mkdir("web");
+        dir.write(
+            "api/.helix/workspace.json",
+            r#"{ "id": "settings-refresh", "folders": [".", "../web"] }"#,
+        );
+        dir.write("web/.helix/settings.json", r#"{ "editor.tabSize": 4 }"#);
+        let logger = logger();
+        let (workspace, fs) = service(&dir, logger.clone());
+        let mut service = WorkspaceKernelService::new(workspace.clone(), fs, logger);
+        service.start(&ServiceContext::new()).await.unwrap();
+        let opened = workspace.open(std::slice::from_ref(&api), None).unwrap();
+        let web_file = web.join("app.ts");
+        assert_eq!(
+            workspace
+                .setting_value(&opened.key, Some(&web_file), "editor.tabSize")
+                .unwrap(),
+            Some(serde_json::json!(4))
+        );
+
+        std::fs::write(
+            helix_config::settings_path_in(&web),
+            r#"{ "editor.tabSize": 8 }"#,
+        )
+        .unwrap();
+
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                if workspace
+                    .setting_value(&opened.key, Some(&web_file), "editor.tabSize")
+                    .unwrap()
+                    == Some(serde_json::json!(8))
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("an external folder setting must refresh the open workspace");
+
+        std::fs::write(helix_config::settings_path_in(&web), "{ broken").unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let snapshot = workspace.snapshot(&opened.key).unwrap();
+                if let Some(error) = snapshot.settings_parse_errors.first() {
+                    assert_eq!(
+                        workspace
+                            .setting_value(&opened.key, Some(&web_file), "editor.tabSize")
+                            .unwrap(),
+                        Some(serde_json::json!(8)),
+                        "the previous valid folder layer must remain effective"
+                    );
+                    assert!(error.path.ends_with("web/.helix/settings.json"));
+                    assert!(error.line >= 1);
+                    assert!(error.column >= 1);
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("invalid folder settings must surface without replacing the last valid layer");
+
+        std::fs::write(
+            helix_config::settings_path_in(&web),
+            r#"{ "editor.tabSize": 6 }"#,
+        )
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let snapshot = workspace.snapshot(&opened.key).unwrap();
+                if snapshot.settings_parse_errors.is_empty()
+                    && workspace
+                        .setting_value(&opened.key, Some(&web_file), "editor.tabSize")
+                        .unwrap()
+                        == Some(serde_json::json!(6))
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("a valid edit must replace the retained layer and clear its diagnostic");
+    }
+
+    #[tokio::test]
+    async fn external_workspace_document_edits_refresh_roots_and_preserve_last_good() {
+        let dir = TempDir::new("kernel-workspace-document-refresh");
+        let api = dir.mkdir("api");
+        let web = dir.mkdir("web");
+        let document = dir.write(
+            "api/.helix/workspace.json",
+            r#"{ "id": "document-refresh", "folders": ["."] }"#,
+        );
+        let logger = logger();
+        let (workspace, fs) = service(&dir, logger.clone());
+        let mut service = WorkspaceKernelService::new(workspace.clone(), fs.clone(), logger);
+        service.start(&ServiceContext::new()).await.unwrap();
+        let opened = workspace.open(std::slice::from_ref(&api), None).unwrap();
+
+        std::fs::write(
+            &document,
+            r#"{ "id": "document-refresh", "folders": [".", "../web"] }"#,
+        )
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let snapshot = workspace.snapshot(&opened.key).unwrap();
+                if snapshot.roots.len() == 2 && watched(&fs, &web) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("an externally added root must be opened and watched");
+
+        std::fs::write(&document, "{ broken").unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let snapshot = workspace.snapshot(&opened.key).unwrap();
+                if let Some(parse_error) = snapshot.parse_error {
+                    assert_eq!(snapshot.roots.len(), 2);
+                    assert!(watched(&fs, &web));
+                    assert!(parse_error.line >= 1);
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("invalid JSON must surface without replacing the last valid roots");
+
+        std::fs::write(
+            &document,
+            r#"{ "id": "document-refresh", "folders": ["."] }"#,
+        )
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let snapshot = workspace.snapshot(&opened.key).unwrap();
+                if snapshot.roots.len() == 1 && !watched(&fs, &web) {
+                    assert!(snapshot.parse_error.is_none());
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("an externally removed root must release its watcher");
     }
 
     #[test]

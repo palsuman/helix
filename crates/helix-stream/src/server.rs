@@ -35,6 +35,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
@@ -105,10 +106,10 @@ impl HeartbeatMonitor {
     }
 
     /// Record a ping being sent. Returns true when the peer has now missed
-    /// more than the allowed number of consecutive pongs.
+    /// the configured number of consecutive pongs.
     pub fn record_ping(&self) -> bool {
         let unanswered = self.unanswered.fetch_add(1, Ordering::Relaxed) + 1;
-        unanswered > u64::from(self.limit)
+        unanswered >= u64::from(self.limit)
     }
 
     /// Record any pong. A single answer clears the whole streak: the peer
@@ -142,13 +143,14 @@ pub struct ServerMetrics {
 
 /// A running streaming server.
 ///
-/// Dropping the handle aborts the accept loop; in-flight connections are
-/// closed when their sessions are dropped with it.
+/// Dropping the handle stops the accept loop and signals every in-flight
+/// connection to close.
 pub struct StreamServer {
     addr: SocketAddr,
     config: ServerConfig,
     hub: Arc<StreamHub>,
     counters: Arc<ServerCounters>,
+    shutdown_tx: watch::Sender<bool>,
     accept_loop: JoinHandle<()>,
 }
 
@@ -162,6 +164,7 @@ impl StreamServer {
         let listener = TcpListener::bind(config.bind_addr).await?;
         let addr = listener.local_addr()?;
         let counters = Arc::new(ServerCounters::default());
+        let (shutdown_tx, mut shutdown_rx) = watch::channel(false);
 
         let accept_loop = {
             let hub = hub.clone();
@@ -169,18 +172,29 @@ impl StreamServer {
             let counters = counters.clone();
             tokio::spawn(async move {
                 loop {
-                    match listener.accept().await {
+                    let accepted = tokio::select! {
+                        changed = shutdown_rx.changed() => {
+                            if changed.is_err() || *shutdown_rx.borrow() {
+                                break;
+                            }
+                            continue;
+                        }
+                        accepted = listener.accept() => accepted,
+                    };
+                    match accepted {
                         Ok((stream, peer)) => {
                             let hub = hub.clone();
                             let config = config.clone();
                             let counters = counters.clone();
+                            let shutdown_rx = shutdown_rx.clone();
                             tokio::spawn(async move {
                                 // A single misbehaving client must not take
                                 // the accept loop or any other connection
                                 // with it, so every connection is its own
                                 // task and its error is swallowed here.
                                 if let Err(e) =
-                                    serve_connection(stream, hub, config, &counters).await
+                                    serve_connection(stream, hub, config, &counters, shutdown_rx)
+                                        .await
                                 {
                                     let _ = (peer, e);
                                 }
@@ -203,6 +217,7 @@ impl StreamServer {
             config,
             hub,
             counters,
+            shutdown_tx,
             accept_loop,
         })
     }
@@ -247,14 +262,16 @@ impl StreamServer {
         }
     }
 
-    /// Stop accepting new connections.
+    /// Stop accepting new connections and close every active connection.
     pub fn shutdown(&self) {
+        let _ = self.shutdown_tx.send(true);
         self.accept_loop.abort();
     }
 }
 
 impl Drop for StreamServer {
     fn drop(&mut self) {
+        let _ = self.shutdown_tx.send(true);
         self.accept_loop.abort();
     }
 }
@@ -290,6 +307,7 @@ async fn serve_connection(
     hub: Arc<StreamHub>,
     config: ServerConfig,
     counters: &Arc<ServerCounters>,
+    mut shutdown_rx: watch::Receiver<bool>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Nagle off: streaming is latency-sensitive (terminal input echo has a
     // 16ms budget in REQ-NFR-001.3), and the frames are small.
@@ -390,15 +408,28 @@ async fn serve_connection(
                     break Outcome::PeerGone;
                 }
             }
+            changed = shutdown_rx.changed() => {
+                let _ = changed;
+                break Outcome::Shutdown;
+            }
         }
     };
 
-    if let Outcome::HeartbeatTimeout = outcome {
-        counters.heartbeat_timeouts.fetch_add(1, Ordering::Relaxed);
-        let closing = StreamFrame::control(StreamControl::Closing {
-            reason: format!("no pong after {} heartbeats", config.missed_heartbeat_limit),
-        });
-        let _ = send_frame(&mut sink, &closing).await;
+    match outcome {
+        Outcome::HeartbeatTimeout => {
+            counters.heartbeat_timeouts.fetch_add(1, Ordering::Relaxed);
+            let closing = StreamFrame::control(StreamControl::Closing {
+                reason: format!("no pong after {} heartbeats", config.missed_heartbeat_limit),
+            });
+            let _ = send_frame(&mut sink, &closing).await;
+        }
+        Outcome::Shutdown => {
+            let closing = StreamFrame::control(StreamControl::Closing {
+                reason: "stream service shutting down".into(),
+            });
+            let _ = send_frame(&mut sink, &closing).await;
+        }
+        Outcome::Closed | Outcome::PeerGone => {}
     }
 
     let _ = sink.close().await;
@@ -412,6 +443,7 @@ enum Outcome {
     Closed,
     PeerGone,
     HeartbeatTimeout,
+    Shutdown,
 }
 
 /// Apply a frame received from the client.
@@ -470,16 +502,15 @@ mod tests {
     }
 
     #[test]
-    fn a_connection_survives_up_to_the_limit_of_unanswered_pings() {
+    fn a_connection_is_dead_on_the_configured_missed_ping_limit() {
         let monitor = HeartbeatMonitor::new(3);
         assert!(!monitor.record_ping());
         assert!(!monitor.record_ping());
-        assert!(!monitor.record_ping());
-        assert_eq!(monitor.unanswered(), 3);
         assert!(
             monitor.record_ping(),
-            "the fourth unanswered ping exceeds a limit of 3 and declares the peer dead"
+            "the third unanswered ping reaches the limit and declares the peer dead"
         );
+        assert_eq!(monitor.unanswered(), 3);
     }
 
     #[test]

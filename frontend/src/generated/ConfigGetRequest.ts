@@ -13,4 +13,12 @@ export type ConfigGetRequest = {
    * that language (REQ-CONFIG-001.2).
    */
   language: string | null;
+  /**
+   * Open workspace key when workspace or folder layers should participate.
+   */
+  workspace_key: string | null;
+  /**
+   * Path whose owning root supplies the folder layer.
+   */
+  path: string | null;
 };

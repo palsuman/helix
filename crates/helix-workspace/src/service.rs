@@ -54,7 +54,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use helix_config::{ConfigParseError, ConfigService};
+use helix_config::{
+    ConfigChange, ConfigParseError, ConfigPaths, ConfigScope, ConfigService, SettingIssue,
+    SettingValue,
+};
 use helix_core::error::AppError;
 use helix_fs::{FileSystemService, WriteOptions};
 use helix_log::{Logger, log_info, log_warn};
@@ -142,9 +145,13 @@ pub enum WorkspaceEventKind {
     RootsChanged,
     /// A root's availability changed, in either direction.
     AvailabilityChanged,
+    /// User, workspace, or folder settings changed while the workspace was open.
+    SettingsChanged,
     /// `.helix/workspace.json` was written, possibly assigning the `id` for the
     /// first time.
     DocumentWritten,
+    /// `.helix/workspace.json` changed outside the application and was reloaded.
+    DocumentChanged,
 }
 
 /// A workspace change, delivered to listeners and published on the streaming
@@ -184,6 +191,10 @@ pub struct WorkspaceSnapshot {
     /// Set when the document would not parse. The workspace opened anyway, on
     /// the roots that were requested.
     pub parse_error: Option<ConfigParseError>,
+    /// Invalid workspace/folder settings files, retaining their last valid layer.
+    pub settings_parse_errors: Vec<ConfigParseError>,
+    /// Per-setting schema and scope problems in workspace/folder layers.
+    pub settings_issues: Vec<SettingIssue>,
     /// Set when the last write of the document failed, e.g. a read-only
     /// checkout. The change is in effect for this session regardless.
     pub persist_error: Option<String>,
@@ -250,6 +261,8 @@ struct OpenWorkspace {
     parse_error: Option<ConfigParseError>,
     persist_error: Option<String>,
     settings: WorkspaceSettings,
+    settings_parse_errors: Vec<ConfigParseError>,
+    settings_issues: Vec<SettingIssue>,
     /// One lease per holder. The registry's reference count follows this vector,
     /// and the scope ends when the last one is dropped.
     leases: Vec<WorkspaceLease>,
@@ -271,6 +284,8 @@ impl OpenWorkspace {
             has_file: self.has_file,
             issues: self.issues.clone(),
             parse_error: self.parse_error.clone(),
+            settings_parse_errors: self.settings_parse_errors.clone(),
+            settings_issues: self.settings_issues.clone(),
             persist_error: self.persist_error.clone(),
             max_roots,
             at_root_limit: self.roots.len() >= max_roots,
@@ -297,6 +312,9 @@ impl OpenWorkspace {
 /// publish onto the streaming channel.
 pub type WorkspaceListener = Arc<dyn Fn(&WorkspaceEvent) + Send + Sync>;
 
+/// A workspace- or folder-layer configuration change.
+pub type ConfigChangeListener = Arc<dyn Fn(&ConfigChange) + Send + Sync>;
+
 /// The workspace manager.
 pub struct WorkspaceService {
     config: Arc<ConfigService>,
@@ -306,6 +324,7 @@ pub struct WorkspaceService {
     open: RwLock<BTreeMap<String, OpenWorkspace>>,
     hooks: RwLock<Vec<Arc<dyn WorkspaceHooks>>>,
     listeners: RwLock<Vec<WorkspaceListener>>,
+    config_listeners: RwLock<Vec<ConfigChangeListener>>,
     recent: RwLock<RecentWorkspaces>,
     /// Where the recent list is stored. `None` on a machine with no home
     /// directory, where the list lives for the session and is not persisted.
@@ -345,6 +364,7 @@ impl WorkspaceService {
             open: RwLock::new(BTreeMap::new()),
             hooks: RwLock::new(Vec::new()),
             listeners: RwLock::new(Vec::new()),
+            config_listeners: RwLock::new(Vec::new()),
             recent: RwLock::new(recent),
             recent_path,
             counters: Counters::default(),
@@ -368,6 +388,11 @@ impl WorkspaceService {
     /// publish onto the streaming channel.
     pub fn add_listener(&self, listener: WorkspaceListener) {
         self.listeners.write().unwrap().push(listener);
+    }
+
+    /// Register a listener for scoped configuration changes.
+    pub fn add_config_listener(&self, listener: ConfigChangeListener) {
+        self.config_listeners.write().unwrap().push(listener);
     }
 
     /// The configured root cap, never above [`MAX_ROOTS`].
@@ -467,11 +492,14 @@ impl WorkspaceService {
             parse_error,
             persist_error: None,
             settings: WorkspaceSettings::default(),
+            settings_parse_errors: Vec::new(),
+            settings_issues: Vec::new(),
             leases: vec![self.registry.acquire(&key)],
             opened_ms: now_ms(),
         };
 
         let settings = self.resolve_settings(&workspace);
+        apply_settings(&mut workspace, settings);
         // Whether this open created the workspace or joined one already open is
         // decided under a single write lock rather than by a read-then-write, so
         // two windows opening the same project at the same moment cannot both
@@ -484,7 +512,6 @@ impl WorkspaceService {
                     (existing.snapshot(max_roots), false)
                 }
                 None => {
-                    workspace.settings = settings;
                     let entry = open.entry(key.clone()).or_insert(workspace);
                     (entry.snapshot(max_roots), true)
                 }
@@ -673,7 +700,7 @@ impl WorkspaceService {
             };
             workspace.roots.push(root.clone());
             let settings = self.resolve_settings(workspace);
-            workspace.settings = settings;
+            apply_settings(workspace, settings);
             (workspace.snapshot(max_roots), root)
         };
 
@@ -751,7 +778,7 @@ impl WorkspaceService {
                 workspace.has_file = workspace.file_path.exists();
             }
             let settings = self.resolve_settings(workspace);
-            workspace.settings = settings;
+            apply_settings(workspace, settings);
             (workspace.snapshot(max_roots), removed)
         };
 
@@ -808,7 +835,7 @@ impl WorkspaceService {
                 }
                 // A root that reappeared may bring settings with it.
                 let settings = self.resolve_settings(workspace);
-                workspace.settings = settings;
+                apply_settings(workspace, settings);
                 workspace.snapshot(max_roots)
             };
 
@@ -848,6 +875,186 @@ impl WorkspaceService {
         events
     }
 
+    /// Re-read the settings layers of every open workspace.
+    ///
+    /// The kernel calls this after a user configuration change or a watched
+    /// `.helix/settings.json` edit. Only workspaces whose effective settings
+    /// actually moved emit an event, so an unrelated file change is silent.
+    pub fn refresh_settings(&self) -> Vec<WorkspaceEvent> {
+        let max_roots = self.max_roots();
+        let keys: Vec<String> = self.open.read().unwrap().keys().cloned().collect();
+        let mut events = Vec::new();
+
+        for key in keys {
+            let snapshot = {
+                let mut open = self.open.write().unwrap();
+                let Some(workspace) = open.get_mut(&key) else {
+                    continue;
+                };
+                let settings = self.resolve_settings(workspace);
+                if settings.settings == workspace.settings
+                    && settings.parse_errors == workspace.settings_parse_errors
+                    && settings.issues == workspace.settings_issues
+                {
+                    continue;
+                }
+                apply_settings(workspace, settings);
+                workspace.snapshot(max_roots)
+            };
+
+            let event = WorkspaceEvent {
+                kind: WorkspaceEventKind::SettingsChanged,
+                key: key.clone(),
+                workspace: Some(snapshot),
+                roots: Vec::new(),
+                torn_down: false,
+            };
+            self.emit(event.clone());
+            events.push(event);
+        }
+
+        events
+    }
+
+    /// Re-read one open `.helix/workspace.json` after an external change.
+    /// Parse failures update diagnostics while preserving the last valid roots,
+    /// settings, and lifecycle bindings.
+    pub fn refresh_document(&self, file_path: &Path) -> Option<WorkspaceEvent> {
+        let max_roots = self.max_roots();
+        let (key, primary, current_id) = self
+            .open
+            .read()
+            .unwrap()
+            .iter()
+            .find(|(_, workspace)| same_path(&workspace.file_path, file_path))
+            .map(|(key, workspace)| {
+                (
+                    key.clone(),
+                    workspace.primary.clone(),
+                    workspace.document.id.clone(),
+                )
+            })?;
+
+        let (mut document, mut issues, parse_error, has_file) =
+            self.read_document(file_path, max_roots);
+        if parse_error.is_some() {
+            self.counters.parse_errors.fetch_add(1, Ordering::Relaxed);
+            let snapshot = {
+                let mut open = self.open.write().unwrap();
+                let workspace = open.get_mut(&key)?;
+                if workspace.parse_error == parse_error && workspace.has_file == has_file {
+                    return None;
+                }
+                workspace.parse_error = parse_error;
+                workspace.has_file = has_file;
+                workspace.snapshot(max_roots)
+            };
+            let event = WorkspaceEvent {
+                kind: WorkspaceEventKind::DocumentChanged,
+                key,
+                workspace: Some(snapshot),
+                roots: Vec::new(),
+                torn_down: false,
+            };
+            self.emit(event.clone());
+            return Some(event);
+        }
+
+        if document.id != current_id {
+            issues.push(WorkspaceIssue::new(
+                WorkspaceIssueKind::ChangedId,
+                "id",
+                "the workspace id cannot change while the workspace is open; the running id was kept",
+            ));
+            document.id = current_id;
+        }
+
+        let roots = resolved_roots(&primary, &document, max_roots);
+        let name = document
+            .name
+            .clone()
+            .unwrap_or_else(|| display_name(&primary));
+        let (snapshot, removed, added, changed) = {
+            let mut open = self.open.write().unwrap();
+            let workspace = open.get_mut(&key)?;
+            let removed = workspace
+                .roots
+                .iter()
+                .filter(|old| {
+                    !roots
+                        .iter()
+                        .any(|new| same_path(old.as_path(), new.as_path()))
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let added = roots
+                .iter()
+                .filter(|new| {
+                    !workspace
+                        .roots
+                        .iter()
+                        .any(|old| same_path(old.as_path(), new.as_path()))
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+
+            let previous_document = workspace.document.clone();
+            let previous_roots = workspace.roots.clone();
+            let previous_issues = workspace.issues.clone();
+            let previous_name = workspace.name.clone();
+            let previous_settings = workspace.settings.clone();
+            workspace.document = document;
+            workspace.roots = roots;
+            workspace.issues = issues;
+            workspace.parse_error = None;
+            workspace.has_file = has_file;
+            workspace.name = name;
+            let settings = self.resolve_settings(workspace);
+            apply_settings(workspace, settings);
+
+            let state_changed = workspace.document != previous_document
+                || workspace.roots != previous_roots
+                || workspace.issues != previous_issues
+                || workspace.name != previous_name
+                || workspace.settings != previous_settings;
+            if !state_changed {
+                return None;
+            }
+
+            let mut changed = removed.clone();
+            changed.extend(added.iter().cloned());
+            (workspace.snapshot(max_roots), removed, added, changed)
+        };
+
+        for root in removed.iter().rev() {
+            if root.availability.is_available() {
+                self.unbind_root(&key, root);
+            }
+        }
+        for root in &added {
+            if root.availability.is_available() {
+                self.bind_root(&key, root);
+            }
+        }
+        self.counters
+            .roots_removed
+            .fetch_add(removed.len() as u64, Ordering::Relaxed);
+        self.counters
+            .roots_added
+            .fetch_add(added.len() as u64, Ordering::Relaxed);
+        self.record_recent(&snapshot);
+
+        let event = WorkspaceEvent {
+            kind: WorkspaceEventKind::DocumentChanged,
+            key,
+            workspace: Some(snapshot),
+            roots: changed,
+            torn_down: false,
+        };
+        self.emit(event.clone());
+        Some(event)
+    }
+
     // ---- reads -----------------------------------------------------------
 
     pub fn snapshot(&self, key: &str) -> Option<WorkspaceSnapshot> {
@@ -874,6 +1081,90 @@ impl WorkspaceService {
         self.open.read().unwrap().contains_key(key)
     }
 
+    /// Build the settings layer paths for an open workspace and optional file.
+    pub fn config_paths(&self, key: &str, path: Option<&Path>) -> Result<ConfigPaths, AppError> {
+        let open = self.open.read().unwrap();
+        let workspace = open.get(key).ok_or_else(|| not_open(key))?;
+        let mut paths = ConfigPaths::for_user().with_workspace_root(&workspace.primary);
+        if let Some(path) = path {
+            let root = workspace
+                .settings
+                .owning_root(path)
+                .ok_or_else(|| path_outside_workspace(key, path))?;
+            if !same_path(root, &workspace.primary) {
+                paths = paths.with_folder_root(root);
+            }
+        }
+        Ok(paths)
+    }
+
+    /// Write a workspace or folder setting through the configuration service's
+    /// validation and JSONC persistence path, then refresh the open workspace.
+    pub fn set_config(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        scope: ConfigScope,
+        setting: &str,
+        value: Value,
+        language: Option<&str>,
+    ) -> Result<(ConfigChange, Option<SettingValue>), AppError> {
+        let config = self.scoped_config(key, path, scope)?;
+        let change = config.set(scope, setting, value, language)?;
+        let effective = config.get(setting, language);
+        self.refresh_settings();
+        self.emit_config(&change);
+        Ok((change, effective))
+    }
+
+    /// Reset a workspace or folder setting and refresh its effective cache.
+    pub fn reset_config(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        scope: ConfigScope,
+        setting: &str,
+        language: Option<&str>,
+    ) -> Result<(ConfigChange, Option<SettingValue>), AppError> {
+        let config = self.scoped_config(key, path, scope)?;
+        let change = config.reset(scope, setting, language)?;
+        let effective = config.get(setting, language);
+        self.refresh_settings();
+        self.emit_config(&change);
+        Ok((change, effective))
+    }
+
+    /// Load the configuration view for an open workspace and optional path.
+    pub fn config_view(&self, key: &str, path: Option<&Path>) -> Result<ConfigService, AppError> {
+        Ok(ConfigService::load(
+            self.config_paths(key, path)?,
+            self.config.schema().clone(),
+            self.logger.clone(),
+        ))
+    }
+
+    fn scoped_config(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        scope: ConfigScope,
+    ) -> Result<ConfigService, AppError> {
+        if !matches!(scope, ConfigScope::Workspace | ConfigScope::Folder) {
+            return Err(AppError::permanent(
+                "CONFIG_SCOPE_CONTEXT_INVALID",
+                format!("the workspace manager cannot write the {scope} layer"),
+            ));
+        }
+        let config = self.config_view(key, path)?;
+        if scope == ConfigScope::Folder && config.paths().folder.is_none() {
+            return Err(AppError::permanent(
+                "CONFIG_FOLDER_REQUIRED",
+                "folder-scoped settings need a path owned by a non-primary workspace root",
+            ));
+        }
+        Ok(config)
+    }
+
     /// The root of `key`'s workspace that owns `path`, by longest match.
     pub fn owning_root(&self, key: &str, path: &Path) -> Option<PathBuf> {
         self.open.read().unwrap().get(key).and_then(|workspace| {
@@ -887,9 +1178,19 @@ impl WorkspaceService {
     /// The effective settings tree for a path, with the owning root's folder
     /// settings applied (REQ-FS-001.3).
     pub fn settings_tree(&self, key: &str, path: Option<&Path>) -> Result<Value, AppError> {
+        self.settings_tree_for_language(key, path, None)
+    }
+
+    /// Effective settings for a path and optional language override.
+    pub fn settings_tree_for_language(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        language: Option<&str>,
+    ) -> Result<Value, AppError> {
         let open = self.open.read().unwrap();
         let workspace = open.get(key).ok_or_else(|| not_open(key))?;
-        Ok(workspace.settings.effective(path))
+        Ok(workspace.settings.effective_for_language(path, language))
     }
 
     /// One setting's effective value for a path.
@@ -899,9 +1200,22 @@ impl WorkspaceService {
         path: Option<&Path>,
         setting: &str,
     ) -> Result<Option<Value>, AppError> {
+        self.setting_value_for_language(key, path, setting, None)
+    }
+
+    /// One setting's effective value for a path and optional language.
+    pub fn setting_value_for_language(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        setting: &str,
+        language: Option<&str>,
+    ) -> Result<Option<Value>, AppError> {
         let open = self.open.read().unwrap();
         let workspace = open.get(key).ok_or_else(|| not_open(key))?;
-        Ok(workspace.settings.value(setting, path))
+        Ok(workspace
+            .settings
+            .value_for_language(setting, path, language))
     }
 
     /// The recent workspace list, most recent first (REQ-FS-001.6).
@@ -920,7 +1234,15 @@ impl WorkspaceService {
 
     /// JSON Schema for the workspace document, for the JSON editor.
     pub fn document_schema(&self) -> Value {
-        crate::model::workspace_json_schema(self.max_roots())
+        let mut schema = crate::model::workspace_json_schema(self.max_roots());
+        if let Some(properties) = schema
+            .as_object_mut()
+            .and_then(|schema| schema.get_mut("properties"))
+            .and_then(Value::as_object_mut)
+        {
+            properties.insert("settings".to_string(), self.config.schema().json_schema());
+        }
+        schema
     }
 
     pub fn metrics(&self) -> WorkspaceMetrics {
@@ -994,7 +1316,24 @@ impl WorkspaceService {
         // notes in.
         match helix_config::jsonc::parse_object(&file_path.to_string_lossy(), &body) {
             Ok(raw) => {
-                let (document, issues) = WorkspaceFile::from_raw(raw, max_roots);
+                let (document, mut issues) = WorkspaceFile::from_raw(raw, max_roots);
+                let (_, setting_issues) = crate::settings::normalize(
+                    self.config.schema(),
+                    ConfigScope::Workspace,
+                    document.settings.clone(),
+                );
+                issues.extend(setting_issues.into_iter().map(|issue| {
+                    let language = issue
+                        .language
+                        .as_deref()
+                        .map(|language| format!("[{language}]."))
+                        .unwrap_or_default();
+                    WorkspaceIssue::new(
+                        WorkspaceIssueKind::InvalidSetting,
+                        format!("settings.{language}{}", issue.key),
+                        issue.message,
+                    )
+                }));
                 if !issues.is_empty() {
                     log_warn!(
                         self.logger,
@@ -1118,8 +1457,11 @@ impl WorkspaceService {
     }
 
     /// Resolve the workspace and folder settings layers over the global tree.
-    fn resolve_settings(&self, workspace: &OpenWorkspace) -> WorkspaceSettings {
-        let base = self.config.snapshot().global.clone();
+    fn resolve_settings(
+        &self,
+        workspace: &OpenWorkspace,
+    ) -> crate::settings::WorkspaceSettingsResolution {
+        let base = self.config.snapshot();
         let available: Vec<PathBuf> = workspace
             .roots
             .iter()
@@ -1130,12 +1472,13 @@ impl WorkspaceService {
         // included in the ordering even though no file can be read from them.
         let all = workspace.root_paths();
         let fs = self.fs.clone();
-        WorkspaceSettings::resolve(
+        WorkspaceSettings::resolve_with_previous(
             self.config.schema(),
-            base,
+            (base.global.clone(), base.languages.clone()),
             &workspace.document.settings,
             &workspace.primary,
             &all,
+            Some(&workspace.settings),
             move |path| {
                 // A settings file under an unavailable root cannot be read, and
                 // trying costs a filesystem timeout per resolution on a dropped
@@ -1220,12 +1563,56 @@ impl WorkspaceService {
             listener(&event);
         }
     }
+
+    fn emit_config(&self, change: &ConfigChange) {
+        if !change.is_meaningful() {
+            return;
+        }
+        for listener in self.config_listeners.read().unwrap().iter() {
+            listener(change);
+        }
+    }
 }
 
 fn push_unique(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
     if !paths.iter().any(|existing| same_path(existing, &candidate)) {
         paths.push(candidate);
     }
+}
+
+fn apply_settings(
+    workspace: &mut OpenWorkspace,
+    resolution: crate::settings::WorkspaceSettingsResolution,
+) {
+    workspace.settings = resolution.settings;
+    workspace.settings_parse_errors = resolution.parse_errors;
+    workspace.settings_issues = resolution.issues;
+}
+
+fn resolved_roots(
+    primary: &Path,
+    document: &WorkspaceFile,
+    max_roots: usize,
+) -> Vec<WorkspaceRoot> {
+    let mut paths = vec![primary.to_path_buf()];
+    for folder in document.resolved_folders(primary) {
+        push_unique(&mut paths, canonical_path(&folder));
+        if paths.len() >= max_roots {
+            break;
+        }
+    }
+    paths
+        .into_iter()
+        .enumerate()
+        .map(|(index, path)| WorkspaceRoot {
+            name: document
+                .name_for(primary, &path)
+                .unwrap_or_else(|| display_name(&path)),
+            availability: RootAvailability::probe(&path),
+            path: path.to_string_lossy().to_string(),
+            primary: index == 0,
+        })
+        .collect()
 }
 
 /// Display name for a root: its final segment, or the whole path for a
@@ -1240,6 +1627,16 @@ fn not_open(key: &str) -> AppError {
     AppError::permanent(
         "WORKSPACE_NOT_OPEN",
         format!("no open workspace has the key `{key}`"),
+    )
+}
+
+fn path_outside_workspace(key: &str, path: &Path) -> AppError {
+    AppError::permanent(
+        "WORKSPACE_PATH_OUTSIDE_ROOTS",
+        format!(
+            "{} is not inside any root of workspace '{key}'",
+            path.display()
+        ),
     )
 }
 

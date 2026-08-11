@@ -10,4 +10,16 @@ publish.workspace = true
 name = "helix-supervisor"
 path = "src/main.rs"
 
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
 [dependencies]
+helix-ipc = { path = "../helix-ipc" }
+serde_json = "=1.0.145"
+tauri = { version = "=2.11.5", features = [] }
+tokio = { version = "=1.53.1", features = ["rt", "sync", "time", "net", "io-util", "process"] }
+uuid = { version = "=1.24.0", features = ["v4"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+ipc-e2e = []

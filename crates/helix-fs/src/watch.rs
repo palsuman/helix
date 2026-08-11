@@ -42,7 +42,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -161,12 +161,17 @@ pub struct WatchStats {
 enum RawEvent {
     Change {
         root: PathBuf,
+        registration: Arc<Exclusions>,
         path: PathBuf,
         kind: ChangeKind,
         is_dir: bool,
     },
     /// The OS watcher for a root reported a problem.
-    WatcherError { root: PathBuf, message: String },
+    WatcherError {
+        root: PathBuf,
+        registration: Arc<Exclusions>,
+        message: String,
+    },
 }
 
 /// Events per second over the last completed window.
@@ -225,12 +230,13 @@ struct RootEntry {
 
 /// Shared between the public handle and the watcher thread.
 struct WatcherCore {
-    config: WatchConfig,
+    config: RwLock<WatchConfig>,
     logger: Arc<Logger>,
     listener: ChangeListener,
     events_tx: Sender<RawEvent>,
     debouncer: Mutex<Debouncer>,
     rate: Mutex<RateMeter>,
+    registration: Mutex<()>,
     roots: Mutex<HashMap<PathBuf, RootEntry>>,
     degraded: AtomicU32,
     shutdown: AtomicBool,
@@ -254,10 +260,11 @@ impl FsWatcher {
         let core = Arc::new(WatcherCore {
             debouncer: Mutex::new(Debouncer::new(config.debounce, config.max_hold)),
             rate: Mutex::new(RateMeter::new(Instant::now())),
+            registration: Mutex::new(()),
             roots: Mutex::new(HashMap::new()),
             degraded: AtomicU32::new(0),
             shutdown: AtomicBool::new(false),
-            config,
+            config: RwLock::new(config),
             logger,
             listener,
             events_tx,
@@ -289,6 +296,11 @@ impl FsWatcher {
     /// Stop watching `root` and discard its pending changes.
     pub fn unwatch(&self, root: impl AsRef<Path>) -> Result<(), AppError> {
         self.core.unwatch(root.as_ref())
+    }
+
+    /// Apply watcher settings to future events and rebuild every active root.
+    pub fn reconfigure(&self, config: WatchConfig) -> Result<Vec<RootReport>, AppError> {
+        self.core.reconfigure(config)
     }
 
     pub fn stats(&self) -> WatchStats {
@@ -332,6 +344,7 @@ impl Drop for FsWatcher {
 
 impl WatcherCore {
     fn watch(&self, root: &Path) -> Result<RootReport, AppError> {
+        let _registration = self.registration.lock().unwrap();
         let root = canonical(root);
         if let Some(existing) = self.roots.lock().unwrap().get(&root) {
             return Ok(existing.report.clone());
@@ -343,7 +356,15 @@ impl WatcherCore {
             ));
         }
 
-        let exclusions = Arc::new(Exclusions::build(&root, &self.config.exclusions));
+        let config = self.config.read().unwrap().clone();
+        let entry = self.build_root(&root, &config)?;
+        let report = entry.report.clone();
+        self.roots.lock().unwrap().insert(root, entry);
+        Ok(report)
+    }
+
+    fn build_root(&self, root: &Path, config: &WatchConfig) -> Result<RootEntry, AppError> {
+        let exclusions = Arc::new(Exclusions::build(root, &config.exclusions));
         for glob in exclusions.invalid_globs() {
             log_warn!(
                 self.logger,
@@ -356,8 +377,8 @@ impl WatcherCore {
 
         // The scan is needed anyway to know the budget, and it is the cheapest
         // moment to also learn what to suggest excluding.
-        let listing = listing::list(&root, &exclusions, true);
-        let outcome = probe::probe_with_threshold(&root, self.config.latency_threshold);
+        let listing = listing::list(root, &exclusions, true);
+        let outcome = probe::probe_with_threshold(root, config.latency_threshold);
         let mut mode = if outcome.remote {
             WatchMode::Polling
         } else {
@@ -365,7 +386,7 @@ impl WatcherCore {
         };
         let mut degraded_reason = None;
 
-        let mut watcher = match self.spawn_watcher(&root, exclusions.clone(), mode) {
+        let mut watcher = match self.spawn_watcher(root, exclusions.clone(), mode, config) {
             Ok(watcher) => watcher,
             Err(error) if mode == WatchMode::Native => {
                 // The inotify-limit case. Keep the root, more slowly.
@@ -378,10 +399,10 @@ impl WatcherCore {
                     "native watching was refused; falling back to polling for this root",
                     "root" => root.display().to_string(),
                     "error" => error.clone(),
-                    "poll_interval_ms" => self.config.poll_interval.as_millis() as u64,
+                    "poll_interval_ms" => config.poll_interval.as_millis() as u64,
                     "suggestion" => "raise the OS watch limit or add exclusions",
                 );
-                self.spawn_watcher(&root, exclusions.clone(), mode)
+                self.spawn_watcher(root, exclusions.clone(), mode, config)
                     .map_err(|error| {
                         AppError::transient(
                             "FS_WATCH_FAILED",
@@ -398,14 +419,14 @@ impl WatcherCore {
         };
 
         let recursive_mode = RecursiveMode::Recursive;
-        watcher.watch(&root, recursive_mode).map_err(|error| {
+        watcher.watch(root, recursive_mode).map_err(|error| {
             AppError::transient(
                 "FS_WATCH_FAILED",
                 format!("could not watch {}: {error}", root.display()),
             )
         })?;
 
-        let over_budget = listing.directory_count > self.config.path_budget;
+        let over_budget = listing.directory_count > config.path_budget;
         let suggested_exclusions = if over_budget {
             suggest_exclusions(&listing)
         } else {
@@ -429,7 +450,7 @@ impl WatcherCore {
                 "watched path budget exceeded; watching continues but consider excluding the directories listed",
                 "root" => root.display().to_string(),
                 "watched_paths" => listing.directory_count,
-                "budget" => self.config.path_budget,
+                "budget" => config.path_budget,
                 "suggested_exclusions" => suggested_exclusions,
             );
         }
@@ -440,7 +461,7 @@ impl WatcherCore {
                 "filesystem latency exceeds the native-watching threshold; polling this root",
                 "root" => root.display().to_string(),
                 "latency_ms" => outcome.latency.map(|l| l.as_millis() as u64).unwrap_or(0),
-                "threshold_ms" => self.config.latency_threshold.as_millis() as u64,
+                "threshold_ms" => config.latency_threshold.as_millis() as u64,
             );
         }
         log_info!(
@@ -453,18 +474,42 @@ impl WatcherCore {
             "files" => listing.file_count,
         );
 
-        self.roots.lock().unwrap().insert(
-            root,
-            RootEntry {
-                watcher,
-                exclusions,
-                report: report.clone(),
-            },
-        );
-        Ok(report)
+        Ok(RootEntry {
+            watcher,
+            exclusions,
+            report,
+        })
+    }
+
+    fn reconfigure(&self, config: WatchConfig) -> Result<Vec<RootReport>, AppError> {
+        let _registration = self.registration.lock().unwrap();
+        let roots: Vec<PathBuf> = self.roots.lock().unwrap().keys().cloned().collect();
+        let mut replacements = HashMap::new();
+        for root in roots {
+            let entry = self.build_root(&root, &config)?;
+            replacements.insert(root, entry);
+        }
+
+        *self.config.write().unwrap() = config.clone();
+        self.debouncer
+            .lock()
+            .unwrap()
+            .reconfigure(config.debounce, config.max_hold);
+        *self.roots.lock().unwrap() = replacements;
+
+        let mut reports = self
+            .roots
+            .lock()
+            .unwrap()
+            .values()
+            .map(|entry| entry.report.clone())
+            .collect::<Vec<_>>();
+        reports.sort_by(|a, b| a.root.cmp(&b.root));
+        Ok(reports)
     }
 
     fn unwatch(&self, root: &Path) -> Result<(), AppError> {
+        let _registration = self.registration.lock().unwrap();
         let root = canonical(root);
         let removed = self.roots.lock().unwrap().remove(&root);
         match removed {
@@ -502,9 +547,11 @@ impl WatcherCore {
         root: &Path,
         exclusions: Arc<Exclusions>,
         mode: WatchMode,
+        config: &WatchConfig,
     ) -> Result<Box<dyn Watcher + Send>, String> {
         let tx = self.events_tx.clone();
         let owned_root = root.to_path_buf();
+        let registration = exclusions.clone();
         let handler = move |result: notify::Result<notify::Event>| match result {
             Ok(event) => {
                 for (path, kind) in translate(&event) {
@@ -518,6 +565,7 @@ impl WatcherCore {
                     }
                     let _ = tx.send(RawEvent::Change {
                         root: owned_root.clone(),
+                        registration: registration.clone(),
                         path,
                         kind,
                         is_dir,
@@ -527,6 +575,7 @@ impl WatcherCore {
             Err(error) => {
                 let _ = tx.send(RawEvent::WatcherError {
                     root: owned_root.clone(),
+                    registration: registration.clone(),
                     message: error.to_string(),
                 });
             }
@@ -538,7 +587,7 @@ impl WatcherCore {
                 .map_err(|error| error.to_string()),
             WatchMode::Polling => PollWatcher::new(
                 handler,
-                NotifyConfig::default().with_poll_interval(self.config.poll_interval),
+                NotifyConfig::default().with_poll_interval(config.poll_interval),
             )
             .map(|watcher| Box::new(watcher) as Box<dyn Watcher + Send>)
             .map_err(|error| error.to_string()),
@@ -560,7 +609,7 @@ impl WatcherCore {
                 .lock()
                 .unwrap()
                 .next_deadline(Instant::now())
-                .unwrap_or(self.config.debounce)
+                .unwrap_or_else(|| self.config.read().unwrap().debounce)
                 .max(Duration::from_millis(1));
 
             match events_rx.recv_timeout(timeout) {
@@ -589,10 +638,15 @@ impl WatcherCore {
         match event {
             RawEvent::Change {
                 root,
+                registration,
                 path,
                 kind,
                 is_dir,
             } => {
+                let _registration_change = self.registration.lock().unwrap();
+                if !self.registration_is_current(&root, &registration) {
+                    return;
+                }
                 let now = Instant::now();
                 self.debouncer
                     .lock()
@@ -600,7 +654,15 @@ impl WatcherCore {
                     .record(&root, &path, kind, is_dir, now);
                 self.rate.lock().unwrap().record(1, now);
             }
-            RawEvent::WatcherError { root, message } => {
+            RawEvent::WatcherError {
+                root,
+                registration,
+                message,
+            } => {
+                let _registration_change = self.registration.lock().unwrap();
+                if !self.registration_is_current(&root, &registration) {
+                    return;
+                }
                 self.degraded.fetch_add(1, Ordering::Relaxed);
                 if let Some(entry) = self.roots.lock().unwrap().get_mut(&root) {
                     entry.report.mode = WatchMode::Polling;
@@ -616,6 +678,14 @@ impl WatcherCore {
                 );
             }
         }
+    }
+
+    fn registration_is_current(&self, root: &Path, registration: &Arc<Exclusions>) -> bool {
+        self.roots
+            .lock()
+            .unwrap()
+            .get(root)
+            .is_some_and(|entry| Arc::ptr_eq(&entry.exclusions, registration))
     }
 
     fn deliver(&self, changes: Vec<FileChange>) {
@@ -671,10 +741,22 @@ fn translate(event: &notify::Event) -> Vec<(PathBuf, ChangeKind)> {
             pair_all(event, ChangeKind::Deleted)
         }
         EventKind::Modify(ModifyKind::Name(RenameMode::To)) => pair_all(event, ChangeKind::Created),
-        // A bare rename with one endpoint (`RenameMode::Any`, which is what
-        // several platforms report) cannot be resolved into a direction here.
-        // "Modified" is the safe reading: the consumer re-reads the path, finds
-        // it present or absent, and is right either way.
+        // FSEvents can report deletion under several Modify subtypes. Resolve
+        // every otherwise-ambiguous modify while the callback still has a live
+        // view of the filesystem: an absent endpoint was removed, while a
+        // present endpoint was changed in place or atomically replaced.
+        EventKind::Modify(_) => event
+            .paths
+            .iter()
+            .map(|path| {
+                let kind = if path.exists() {
+                    ChangeKind::Modified
+                } else {
+                    ChangeKind::Deleted
+                };
+                (path.clone(), kind)
+            })
+            .collect(),
         _ => pair_all(event, ChangeKind::Modified),
     }
 }
@@ -822,6 +904,38 @@ mod tests {
         let change = await_change(&rx, WAIT, |c| c.path.ends_with("doomed.rs"))
             .expect("a delete must surface");
         assert_eq!(change.kind, ChangeKind::Deleted);
+    }
+
+    #[test]
+    fn an_ambiguous_rename_of_an_absent_path_is_a_delete() {
+        let dir = TempDir::new("watch-rename-absent");
+        let path = dir.path().join("gone.rs");
+        let event = notify::Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
+            .add_path(path.clone());
+
+        assert_eq!(translate(&event), vec![(path, ChangeKind::Deleted)]);
+    }
+
+    #[test]
+    fn an_ambiguous_metadata_change_of_an_absent_path_is_a_delete() {
+        let dir = TempDir::new("watch-metadata-absent");
+        let path = dir.path().join("gone.rs");
+        let event = notify::Event::new(EventKind::Modify(ModifyKind::Metadata(
+            notify::event::MetadataKind::Any,
+        )))
+        .add_path(path.clone());
+
+        assert_eq!(translate(&event), vec![(path, ChangeKind::Deleted)]);
+    }
+
+    #[test]
+    fn an_ambiguous_rename_of_a_present_path_is_a_modify() {
+        let dir = TempDir::new("watch-rename-present");
+        let path = dir.write("present.rs", "still here\n");
+        let event = notify::Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Any)))
+            .add_path(path.clone());
+
+        assert_eq!(translate(&event), vec![(path, ChangeKind::Modified)]);
     }
 
     #[test]
@@ -976,6 +1090,32 @@ mod tests {
         let (watcher, _rx) = watcher(&dir);
         watcher.watch(dir.path()).unwrap();
         assert_eq!(watcher.stats().roots, 1);
+    }
+
+    #[test]
+    fn reconfiguring_rebuilds_active_roots_with_the_new_exclusions() {
+        let dir = TempDir::new("watch-reconfigure");
+        dir.write("generated/pkg/output.js", "generated");
+        dir.write("src/main.rs", "fn main() {}");
+        let (listener, _rx) = collecting_listener();
+        let initial = WatchConfig {
+            exclusions: ExclusionConfig::permissive(),
+            ..WatchConfig::default()
+        };
+        let watcher = FsWatcher::new(initial, logger(), listener);
+        let before = watcher.watch(dir.path()).unwrap();
+
+        let updated = WatchConfig {
+            exclusions: ExclusionConfig::permissive().with_globs(["**/generated"]),
+            ..WatchConfig::default()
+        };
+        let reports = watcher.reconfigure(updated).unwrap();
+
+        assert_eq!(reports.len(), 1, "the active root must remain registered");
+        assert!(reports[0].watched_paths < before.watched_paths);
+        let exclusions = watcher.exclusions_for(dir.path()).unwrap();
+        assert!(exclusions.is_excluded(&dir.path().join("generated"), true));
+        assert!(!exclusions.is_excluded(&dir.path().join("src"), true));
     }
 
     #[test]

@@ -41,6 +41,10 @@ pub struct ConfigGetRequest {
     /// Language id, when the caller wants the value that applies to a file of
     /// that language (REQ-CONFIG-001.2).
     pub language: Option<String>,
+    /// Open workspace key when workspace or folder layers should participate.
+    pub workspace_key: Option<String>,
+    /// Path whose owning root supplies the folder layer.
+    pub path: Option<String>,
 }
 
 /// `config.get` response. `setting` is absent for a key that is neither
@@ -62,6 +66,8 @@ pub struct ConfigSetRequest {
     #[ts(type = "unknown")]
     pub value: Value,
     pub language: Option<String>,
+    pub workspace_key: Option<String>,
+    pub path: Option<String>,
 }
 
 impl Default for ConfigSetRequest {
@@ -71,6 +77,8 @@ impl Default for ConfigSetRequest {
             key: String::new(),
             value: Value::Null,
             language: None,
+            workspace_key: None,
+            path: None,
         }
     }
 }
@@ -83,6 +91,8 @@ pub struct ConfigResetRequest {
     pub scope: ConfigScope,
     pub key: String,
     pub language: Option<String>,
+    pub workspace_key: Option<String>,
+    pub path: Option<String>,
 }
 
 impl Default for ConfigResetRequest {
@@ -91,6 +101,8 @@ impl Default for ConfigResetRequest {
             scope: ConfigScope::User,
             key: String::new(),
             language: None,
+            workspace_key: None,
+            path: None,
         }
     }
 }
@@ -114,6 +126,8 @@ pub struct ConfigListRequest {
     /// Dotted-key prefix, e.g. `editor.` to list one category.
     pub prefix: Option<String>,
     pub language: Option<String>,
+    pub workspace_key: Option<String>,
+    pub path: Option<String>,
 }
 
 /// `config.list` response.

@@ -1,17 +1,20 @@
 //! Task 1.3 benchmark: IPC round-trip latency for simple commands must stay
 //! under 5ms at p95 (REQ-ARCH-003.4, REQ-NFR-001).
 //!
-//! This measures the dispatcher path — serialize, correlate, dispatch,
-//! deserialize — which is the part of the round trip Helix owns. The webview
-//! `invoke` bridge on top of it is measured end to end by the E2E suite in
-//! Task 3.3, and the same budget is enforced by the Criterion suite and CI
-//! gate in Task 3.4. Kept as an ordinary test so the budget is checked on
+//! This measures WebView-envelope serialization plus the real authenticated
+//! Host-to-kernel TCP transport, kernel dispatch, and response
+//! deserialization. Kept as an ordinary test so the budget is checked on
 //! every `cargo test` run rather than only when someone remembers to
 //! benchmark.
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use helix_ipc::{IpcDispatcher, IpcRequest, PING, register_builtins};
+use helix_ipc::{
+    InternalRpcClient, InternalRpcRequest, InternalRpcResponse, IpcDispatcher, IpcRequest, PING,
+    register_builtins, serve_internal_rpc_request,
+};
+use tokio::net::TcpListener;
 
 const WARMUP_ITERATIONS: usize = 200;
 const MEASURED_ITERATIONS: usize = 2_000;
@@ -27,30 +30,71 @@ fn percentile(sorted: &[Duration], p: f64) -> Duration {
 async fn simple_command_round_trip_p95_is_under_5ms() {
     let mut dispatcher = IpcDispatcher::new();
     register_builtins(&mut dispatcher, "bench");
+    let dispatcher = Arc::new(dispatcher);
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let server = {
+        let dispatcher = dispatcher.clone();
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                let dispatcher = dispatcher.clone();
+                tokio::spawn(async move {
+                    serve_internal_rpc_request(
+                        stream,
+                        "benchmark-token",
+                        "benchmark-epoch",
+                        dispatcher,
+                    )
+                    .await
+                    .unwrap();
+                });
+            }
+        })
+    };
+    let client = InternalRpcClient::new(address, "benchmark-token", "benchmark-epoch");
 
     let payload = serde_json::json!({ "message": "ping" });
 
     for i in 0..WARMUP_ITERATIONS {
-        let response = dispatcher
-            .dispatch(IpcRequest::new(
-                PING,
-                format!("warmup-{i}"),
-                payload.clone(),
-            ))
-            .await;
-        assert!(response.is_ok());
+        let request = IpcRequest::new(PING, format!("warmup-{i}"), payload.clone());
+        let webview_frame = serde_json::to_vec(&request).unwrap();
+        let request = serde_json::from_slice(&webview_frame).unwrap();
+        let response = client
+            .call(
+                InternalRpcRequest::Dispatch(request),
+                Duration::from_secs(1),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            response,
+            InternalRpcResponse::Dispatch(response) if response.is_ok()
+        ));
     }
 
     let mut samples = Vec::with_capacity(MEASURED_ITERATIONS);
     for i in 0..MEASURED_ITERATIONS {
-        // The payload clone is inside the timed region on purpose: a real
-        // invocation also pays for serializing its arguments.
         let request = IpcRequest::new(PING, format!("bench-{i}"), payload.clone());
         let started = Instant::now();
-        let response = dispatcher.dispatch(request).await;
+        let webview_frame = serde_json::to_vec(&request).unwrap();
+        let request = serde_json::from_slice(&webview_frame).unwrap();
+        let response = client
+            .call(
+                InternalRpcRequest::Dispatch(request),
+                Duration::from_secs(1),
+            )
+            .await;
         samples.push(started.elapsed());
-        assert!(response.is_ok(), "benchmark requests must all succeed");
+        assert!(
+            matches!(
+                response,
+                Ok(InternalRpcResponse::Dispatch(response)) if response.is_ok()
+            ),
+            "benchmark requests must all succeed"
+        );
     }
+
+    server.abort();
 
     samples.sort_unstable();
     let p50 = percentile(&samples, 50.0);

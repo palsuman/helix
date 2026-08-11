@@ -7,9 +7,11 @@ use std::time::{Duration, Instant};
 
 use helix_core::error::{AppError, ErrorCategory};
 use helix_ipc::{
-    IpcDispatcher, IpcRequest, PING, PingRequest, PingResponse, SLEEP, SleepRequest, SleepResponse,
-    register_builtins,
+    CancelRequest, InternalRpcClient, InternalRpcRequest, InternalRpcResponse, IpcDispatcher,
+    IpcRequest, PING, PingRequest, PingResponse, SLEEP, SleepRequest, SleepResponse,
+    register_builtins, serve_internal_rpc_request,
 };
+use tokio::net::TcpListener;
 
 const TEST_KERNEL_VERSION: &str = "1.3.0-test";
 
@@ -17,6 +19,134 @@ fn dispatcher() -> Arc<IpcDispatcher> {
     let mut d = IpcDispatcher::new();
     register_builtins(&mut d, TEST_KERNEL_VERSION);
     Arc::new(d)
+}
+
+async fn rpc_client(
+    dispatcher: Arc<IpcDispatcher>,
+    token: &str,
+    epoch: &str,
+) -> (InternalRpcClient, String) {
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let address = address.to_string();
+    let token = token.to_string();
+    let epoch = epoch.to_string();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let dispatcher = dispatcher.clone();
+            let token = token.clone();
+            let epoch = epoch.clone();
+            tokio::spawn(async move {
+                serve_internal_rpc_request(stream, &token, &epoch, dispatcher)
+                    .await
+                    .unwrap();
+            });
+        }
+    });
+    (
+        InternalRpcClient::new(&address, token_for_client(), epoch_for_client()),
+        address,
+    )
+}
+
+fn token_for_client() -> &'static str {
+    "launch-token"
+}
+
+fn epoch_for_client() -> &'static str {
+    "epoch-2"
+}
+
+#[tokio::test]
+async fn authenticated_socket_round_trip_reaches_the_domain_dispatcher() {
+    let dispatcher = dispatcher();
+    let (client, _) = rpc_client(dispatcher, token_for_client(), epoch_for_client()).await;
+    let request = IpcRequest::new(
+        PING,
+        "socket-round-trip",
+        serde_json::json!({ "message": "through host rpc" }),
+    );
+
+    let response = client
+        .call(
+            InternalRpcRequest::Dispatch(request),
+            Duration::from_secs(1),
+        )
+        .await
+        .unwrap();
+    let InternalRpcResponse::Dispatch(response) = response else {
+        panic!("expected dispatch response");
+    };
+    assert_eq!(response.correlation_id, "socket-round-trip");
+    assert_eq!(response.result.unwrap()["echo"], "through host rpc");
+}
+
+#[tokio::test]
+async fn cancellation_crosses_a_second_socket_and_aborts_the_command() {
+    let dispatcher = dispatcher();
+    let (client, _) = rpc_client(dispatcher.clone(), token_for_client(), epoch_for_client()).await;
+    let dispatch = {
+        let client = client.clone();
+        tokio::spawn(async move {
+            client
+                .call(
+                    InternalRpcRequest::Dispatch(IpcRequest::new(
+                        SLEEP,
+                        "socket-cancel",
+                        serde_json::json!({ "duration_ms": 10_000 }),
+                    )),
+                    Duration::from_secs(11),
+                )
+                .await
+                .unwrap()
+        })
+    };
+    while dispatcher.inflight_count() == 0 {
+        tokio::task::yield_now().await;
+    }
+
+    let started = Instant::now();
+    let cancelled = client
+        .call(
+            InternalRpcRequest::Cancel(CancelRequest {
+                correlation_id: "socket-cancel".into(),
+            }),
+            Duration::from_secs(1),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        cancelled,
+        InternalRpcResponse::Cancel(response) if response.cancelled
+    ));
+    let InternalRpcResponse::Dispatch(response) = dispatch.await.unwrap() else {
+        panic!("expected dispatch response");
+    };
+    assert_eq!(response.error.unwrap().category, ErrorCategory::Cancelled);
+    assert!(started.elapsed() < Duration::from_millis(100));
+}
+
+#[tokio::test]
+async fn a_stale_launch_epoch_is_rejected_before_dispatch() {
+    let dispatcher = dispatcher();
+    let (_, address) = rpc_client(dispatcher.clone(), token_for_client(), epoch_for_client()).await;
+    let stale = InternalRpcClient::new(address, token_for_client(), "epoch-1");
+    let response = stale
+        .call(
+            InternalRpcRequest::Dispatch(IpcRequest::new(
+                PING,
+                "stale",
+                serde_json::json!({ "message": "must not run" }),
+            )),
+            Duration::from_secs(1),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        response,
+        InternalRpcResponse::ProtocolError { message } if message.contains("stale")
+    ));
+    assert_eq!(dispatcher.request_count(), 0);
 }
 
 /// Serialize a typed request, dispatch it, and deserialize the typed

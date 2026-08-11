@@ -1,12 +1,9 @@
 //! `helix-kernel` — the Rust backend process that owns all application
 //! state (REQ-ARCH-001).
 //!
-//! At this point in the plan the kernel is: a Tauri 2 application shell, the
-//! Task 1.2 service container, the Task 1.3 typed IPC command layer, the Task
-//! 1.4 WebSocket streaming layer, Task 1.5 logging, Task 1.6 configuration,
-//! Task 1.7 file system access, and Task 1.8 workspace management. Every
-//! subsequent kernel subsystem registers into the same container and exposes
-//! itself over the same dispatcher and hub.
+//! This crate contains no Tauri or windowing code. The separate
+//! `helix-supervisor` process owns Tauri Core and forwards authenticated typed
+//! requests to this authoritative domain process.
 
 pub mod config;
 pub mod fs;
@@ -23,12 +20,11 @@ use helix_fs::FileSystemService;
 use helix_ipc::IpcDispatcher;
 use helix_log::{LogLevel, Logger, log_info};
 use helix_workspace::WorkspaceService;
-use tokio::sync::Mutex;
 
 const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Everything [`bootstrap`] hands back: the started container plus the
-/// long-lived pieces the transport layer and the Tauri state map need.
+/// long-lived pieces the kernel transport layer needs.
 pub struct Kernel {
     pub container: ServiceContainer,
     pub dispatcher: Arc<IpcDispatcher>,
@@ -42,8 +38,6 @@ pub struct Kernel {
 /// Build and start the kernel's service container, returning it alongside
 /// the shared dispatcher the transport layer needs, the streaming runtime,
 /// and the process logger.
-///
-/// Separate from [`run`] so tests can exercise startup without a webview.
 ///
 /// Two things are constructed before the container starts. The streaming
 /// server, because its port is assigned by the OS and the `stream.endpoint`
@@ -84,7 +78,7 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     let mut dispatcher = ipc::build_dispatcher(KERNEL_VERSION);
     stream::register_commands(&mut dispatcher, &streaming);
     log::register_commands(&mut dispatcher, logger.clone());
-    config::register_commands(&mut dispatcher, config.clone());
+    config::register_commands(&mut dispatcher, config.clone(), Some(workspace.clone()));
     fs::register_commands(&mut dispatcher, fs.clone());
     workspace::register_commands(&mut dispatcher, workspace.clone());
     let dispatcher = Arc::new(dispatcher);
@@ -131,46 +125,6 @@ fn default_log_level() -> LogLevel {
         } else {
             LogLevel::Info
         })
-}
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    let Kernel {
-        container,
-        dispatcher,
-        streaming,
-        logger,
-        config,
-        fs,
-        workspace,
-    } = tauri::async_runtime::block_on(bootstrap()).expect("kernel services failed to start");
-    let container = Arc::new(Mutex::new(container));
-
-    let app = tauri::Builder::default()
-        .manage(dispatcher)
-        .manage(streaming)
-        .manage(logger)
-        .manage(config)
-        .manage(fs)
-        .manage(workspace)
-        .manage(container.clone())
-        .invoke_handler(tauri::generate_handler![ipc::ipc_dispatch, ipc::ipc_cancel])
-        .build(tauri::generate_context!())
-        .expect("error while building helix kernel");
-
-    app.run(move |_handle, event| {
-        // Ordered shutdown of every registered service (REQ-ARCH-002.4), so
-        // a clean quit releases resources instead of relying on process
-        // teardown.
-        if let tauri::RunEvent::Exit = event {
-            let container = container.clone();
-            tauri::async_runtime::block_on(async move {
-                if let Err(e) = container.lock().await.stop_all().await {
-                    eprintln!("kernel shutdown reported an error: {e}");
-                }
-            });
-        }
-    });
 }
 
 #[cfg(test)]

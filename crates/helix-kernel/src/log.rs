@@ -20,10 +20,12 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
@@ -189,14 +191,18 @@ pub fn register_commands(dispatcher: &mut IpcDispatcher, logger: Arc<Logger>) {
 /// Container-managed wrapper around the process logger.
 pub struct LogService {
     logger: Arc<Logger>,
-    bridged: bool,
+    bridge_registered: Arc<AtomicBool>,
 }
 
 impl LogService {
     pub fn new(logger: Arc<Logger>) -> Self {
+        Self::with_bridge_state(logger, Arc::new(AtomicBool::new(false)))
+    }
+
+    fn with_bridge_state(logger: Arc<Logger>, bridge_registered: Arc<AtomicBool>) -> Self {
         Self {
             logger,
-            bridged: false,
+            bridge_registered,
         }
     }
 
@@ -222,7 +228,9 @@ impl Service for LogService {
         // than building its own and fragmenting the stream.
         ctx.publish(self.logger.clone());
 
-        if let Some(hub) = ctx.resolve::<StreamHub>() {
+        if let Some(hub) = ctx.resolve::<StreamHub>()
+            && !self.bridge_registered.swap(true, Ordering::SeqCst)
+        {
             let logger = self.logger.clone();
             let bridge_hub = hub.clone();
             self.logger.add_sink(Arc::new(move |record: &LogRecord| {
@@ -243,7 +251,6 @@ impl Service for LogService {
                     }
                 }
             }));
-            self.bridged = true;
             log_info!(
                 logger,
                 KERNEL_SOURCE,
@@ -296,15 +303,30 @@ impl HealthCheck for LogService {
             error_count: metrics.write_errors,
         }
     }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_logger = self.logger.clone();
+        let metrics_logger = self.logger.clone();
+        Some(ServiceProbe::new(
+            move || LogService::new(health_logger.clone()).health(),
+            move || LogService::new(metrics_logger.clone()).metrics(),
+        ))
+    }
 }
 
 /// Register [`LogService`] on a container as a supervised singleton.
 pub fn register(container: &mut ServiceContainer, logger: Arc<Logger>) -> Result<(), ServiceError> {
+    let bridge_registered = Arc::new(AtomicBool::new(false));
     container.register(
         SERVICE_NAME,
         &[crate::stream::SERVICE_NAME],
         Lifetime::Singleton,
-        move |_ctx| Ok(Box::new(LogService::new(logger.clone())) as Box<dyn ManagedService>),
+        move |_ctx| {
+            Ok(Box::new(LogService::with_bridge_state(
+                logger.clone(),
+                bridge_registered.clone(),
+            )) as Box<dyn ManagedService>)
+        },
     )
 }
 
@@ -641,6 +663,26 @@ mod tests {
         assert_eq!(record.payload["fields"]["free_mb"], 12);
 
         container.stop_all().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_service_reuses_the_existing_stream_sink() {
+        let logger = logger();
+        let hub = Arc::new(StreamHub::default());
+        let ctx = ServiceContext::new();
+        ctx.publish(hub);
+        let bridge_registered = Arc::new(AtomicBool::new(false));
+
+        let mut first = LogService::with_bridge_state(logger.clone(), bridge_registered.clone());
+        first.start(&ctx).await.unwrap();
+        let mut replacement = LogService::with_bridge_state(logger.clone(), bridge_registered);
+        replacement.start(&ctx).await.unwrap();
+
+        assert_eq!(
+            logger.sink_count(),
+            1,
+            "isolated restart must not duplicate the live log sink"
+        );
     }
 
     #[tokio::test]

@@ -33,29 +33,37 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use helix_config::layer::{LayerDocument, LeafDecision};
+use helix_config::ConfigParseError;
+use helix_config::layer::{ConfigScope, LayerDocument, LeafDecision};
 use helix_config::merge::{deep_merge, get_path};
-use helix_config::schema::SchemaRegistry;
+use helix_config::schema::{IssueKind, SchemaRegistry, SettingIssue};
 use serde_json::{Map, Value};
 
-use crate::identity::comparison_key;
+use crate::identity::{canonical_path, comparison_key};
 
 /// The workspace and folder settings layers, resolved and ready to answer for
 /// any path.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct WorkspaceSettings {
     /// Resolved defaults + user tree, as the global configuration service sees
     /// it.
     base: Value,
+    base_languages: BTreeMap<String, Value>,
     /// `workspace.json`'s `settings` merged under the primary root's
     /// `.helix/settings.json`.
-    workspace: Value,
+    workspace: LayerDocument,
     /// One tree per root that has a `.helix/settings.json`, keyed by the
     /// root's comparison key.
-    folders: BTreeMap<String, Value>,
+    folders: BTreeMap<String, LayerDocument>,
     /// Roots, longest comparison key first, so lookup finds the most specific
     /// owner without sorting per question.
     roots: Vec<(String, PathBuf)>,
+}
+
+pub(crate) struct WorkspaceSettingsResolution {
+    pub settings: WorkspaceSettings,
+    pub parse_errors: Vec<ConfigParseError>,
+    pub issues: Vec<SettingIssue>,
 }
 
 impl WorkspaceSettings {
@@ -68,16 +76,51 @@ impl WorkspaceSettings {
     pub fn resolve(
         schema: &SchemaRegistry,
         base: Value,
+        base_languages: BTreeMap<String, Value>,
         workspace_settings: &Map<String, Value>,
         primary: &Path,
         roots: &[PathBuf],
-        mut read: impl FnMut(&Path) -> Option<String>,
+        read: impl FnMut(&Path) -> Option<String>,
     ) -> Self {
-        let mut workspace = normalize(schema, workspace_settings.clone());
-        if let Some(body) = read(&helix_config::settings_path_in(primary))
-            && let Some(tree) = parse(schema, &body)
-        {
-            deep_merge(&mut workspace, &tree);
+        Self::resolve_with_previous(
+            schema,
+            (base, base_languages),
+            workspace_settings,
+            primary,
+            roots,
+            None,
+            read,
+        )
+        .settings
+    }
+
+    pub(crate) fn resolve_with_previous(
+        schema: &SchemaRegistry,
+        base: (Value, BTreeMap<String, Value>),
+        workspace_settings: &Map<String, Value>,
+        primary: &Path,
+        roots: &[PathBuf],
+        previous: Option<&Self>,
+        mut read: impl FnMut(&Path) -> Option<String>,
+    ) -> WorkspaceSettingsResolution {
+        let (base, base_languages) = base;
+        let (mut workspace, mut issues) =
+            normalize(schema, ConfigScope::Workspace, workspace_settings.clone());
+        let mut parse_errors = Vec::new();
+        let primary_settings = helix_config::settings_path_in(primary);
+        if let Some(body) = read(&primary_settings) {
+            match parse(schema, ConfigScope::Workspace, &primary_settings, &body) {
+                Ok((tree, layer_issues)) => {
+                    merge_document(&mut workspace, &tree);
+                    issues.extend(layer_issues);
+                }
+                Err(error) => {
+                    parse_errors.push(error);
+                    if let Some(previous) = previous {
+                        workspace = previous.workspace.clone();
+                    }
+                }
+            }
         }
 
         let mut folders = BTreeMap::new();
@@ -91,27 +134,43 @@ impl WorkspaceSettings {
             if comparison_key(primary) == key {
                 continue;
             }
-            if let Some(body) = read(&helix_config::settings_path_in(root))
-                && let Some(tree) = parse(schema, &body)
-            {
-                folders.insert(key, tree);
+            let settings_path = helix_config::settings_path_in(root);
+            if let Some(body) = read(&settings_path) {
+                match parse(schema, ConfigScope::Folder, &settings_path, &body) {
+                    Ok((tree, layer_issues)) => {
+                        folders.insert(key.clone(), tree);
+                        issues.extend(layer_issues);
+                    }
+                    Err(error) => {
+                        parse_errors.push(error);
+                        if let Some(tree) = previous.and_then(|previous| previous.folders.get(&key))
+                        {
+                            folders.insert(key.clone(), tree.clone());
+                        }
+                    }
+                }
             }
         }
         // Longest first: `/work/api/packages/core` has to be tested before
         // `/work/api`.
         ordered.sort_by_key(|(key, _)| std::cmp::Reverse(key.len()));
 
-        Self {
-            base,
-            workspace,
-            folders,
-            roots: ordered,
+        WorkspaceSettingsResolution {
+            settings: Self {
+                base,
+                base_languages,
+                workspace,
+                folders,
+                roots: ordered,
+            },
+            parse_errors,
+            issues,
         }
     }
 
     /// The root that owns `path`, by longest match.
     pub fn owning_root(&self, path: &Path) -> Option<&Path> {
-        let target = comparison_key(path);
+        let target = comparison_key(&canonical_path(path));
         self.roots
             .iter()
             .find(|(key, _)| {
@@ -129,14 +188,22 @@ impl WorkspaceSettings {
     /// untitled buffer and a file opened from outside the workspace both have
     /// to answer questions about tab size.
     pub fn effective(&self, path: Option<&Path>) -> Value {
-        let mut tree = self.base.clone();
-        deep_merge(&mut tree, &self.workspace);
+        self.effective_for_language(path, None)
+    }
+
+    /// Effective settings for a path and optional language override.
+    pub fn effective_for_language(&self, path: Option<&Path>, language: Option<&str>) -> Value {
+        let mut tree = language
+            .and_then(|language| self.base_languages.get(language))
+            .cloned()
+            .unwrap_or_else(|| self.base.clone());
+        merge_language(&mut tree, &self.workspace, language);
         if let Some(folder) = path
             .and_then(|path| self.owning_root(path))
             .map(comparison_key)
             .and_then(|key| self.folders.get(&key))
         {
-            deep_merge(&mut tree, folder);
+            merge_language(&mut tree, folder, language);
         }
         tree
     }
@@ -147,10 +214,20 @@ impl WorkspaceSettings {
         get_path(&self.effective(path), key).cloned()
     }
 
+    /// One setting's language-aware effective value.
+    pub fn value_for_language(
+        &self,
+        key: &str,
+        path: Option<&Path>,
+        language: Option<&str>,
+    ) -> Option<Value> {
+        get_path(&self.effective_for_language(path, language), key).cloned()
+    }
+
     /// The workspace tree, with no folder layer applied.
     pub fn workspace_tree(&self) -> Value {
         let mut tree = self.base.clone();
-        deep_merge(&mut tree, &self.workspace);
+        merge_language(&mut tree, &self.workspace, None);
         tree
     }
 
@@ -170,9 +247,14 @@ impl WorkspaceSettings {
 /// A folder whose settings file is mid-edit keeps the layers above it rather
 /// than reverting the whole workspace, the same call the configuration service
 /// makes for the same reason.
-fn parse(schema: &SchemaRegistry, body: &str) -> Option<Value> {
-    let raw = helix_config::jsonc::parse_object("", body).ok()?;
-    Some(normalize(schema, raw))
+fn parse(
+    schema: &SchemaRegistry,
+    scope: ConfigScope,
+    path: &Path,
+    body: &str,
+) -> Result<(LayerDocument, Vec<SettingIssue>), ConfigParseError> {
+    let raw = helix_config::jsonc::parse_object(&path.to_string_lossy(), body)?;
+    Ok(normalize(schema, scope, raw))
 }
 
 /// Expand dotted keys and drop language sections, using the schema to decide
@@ -181,18 +263,76 @@ fn parse(schema: &SchemaRegistry, body: &str) -> Option<Value> {
 /// Language-specific overrides are not resolved here. They are a property of
 /// the file being edited, which the editor asks the configuration service
 /// about; a workspace-level answer has no language.
-fn normalize(schema: &SchemaRegistry, raw: Map<String, Value>) -> Value {
-    LayerDocument::from_raw(raw, |key, _language, value| match schema.get(key) {
+pub(crate) fn normalize(
+    schema: &SchemaRegistry,
+    scope: ConfigScope,
+    raw: Map<String, Value>,
+) -> (LayerDocument, Vec<SettingIssue>) {
+    let mut issues = Vec::new();
+    let document = LayerDocument::from_raw(raw, |key, language, value| match schema.get(key) {
         // A declared key *is* a value, whatever its JSON shape. That is what
         // keeps `files.exclude` — keyed by glob, and globs contain dots — from
         // being expanded into nested objects that exclude nothing.
-        Some(_) => LeafDecision::Accept,
+        Some(setting) if !setting.writable_in(scope) => {
+            issues.push(
+                SettingIssue::new(
+                    key,
+                    scope,
+                    IssueKind::WrongScope,
+                    format!("'{key}' cannot be set from the {scope} layer and is ignored here"),
+                )
+                .with_language(language.map(str::to_string)),
+            );
+            LeafDecision::Reject
+        }
+        Some(setting) if language.is_some() && !setting.language_overridable => {
+            issues.push(
+                SettingIssue::new(
+                    key,
+                    scope,
+                    IssueKind::WrongScope,
+                    format!("'{key}' has no per-language meaning; the override is ignored"),
+                )
+                .with_language(language.map(str::to_string)),
+            );
+            LeafDecision::Reject
+        }
+        Some(_) => match schema.validate(key, value) {
+            Ok(()) => LeafDecision::Accept,
+            Err((kind, message)) => {
+                issues.push(
+                    SettingIssue::new(key, scope, kind, message)
+                        .with_language(language.map(str::to_string)),
+                );
+                LeafDecision::Reject
+            }
+        },
         None => match value {
             Value::Object(map) if !map.is_empty() => LeafDecision::Descend,
             _ => LeafDecision::Accept,
         },
-    })
-    .global
+    });
+    (document, issues)
+}
+
+fn merge_document(target: &mut LayerDocument, incoming: &LayerDocument) {
+    deep_merge(&mut target.global, &incoming.global);
+    for (language, section) in &incoming.languages {
+        deep_merge(
+            target
+                .languages
+                .entry(language.clone())
+                .or_insert_with(|| Value::Object(Map::new())),
+            section,
+        );
+    }
+}
+
+fn merge_language(tree: &mut Value, document: &LayerDocument, language: Option<&str>) {
+    deep_merge(tree, &document.global);
+    if let Some(section) = language.and_then(|language| document.languages.get(language)) {
+        deep_merge(tree, section);
+    }
 }
 
 #[cfg(test)]
@@ -221,6 +361,7 @@ mod tests {
         WorkspaceSettings::resolve(
             &schema(),
             base(),
+            BTreeMap::new(),
             workspace.as_object().unwrap(),
             primary,
             roots,
@@ -244,6 +385,57 @@ mod tests {
             Some(json!(14)),
             "a key the workspace does not mention keeps the user value"
         );
+    }
+
+    #[test]
+    fn language_overrides_apply_with_layer_precedence() {
+        let primary = PathBuf::from("/work/api");
+        let mut base_languages = BTreeMap::new();
+        base_languages.insert(
+            "typescript".to_string(),
+            json!({ "editor": { "tabSize": 6, "fontSize": 14 } }),
+        );
+        let resolved = WorkspaceSettings::resolve(
+            &schema(),
+            base(),
+            base_languages,
+            json!({
+                "editor.tabSize": 4,
+                "[typescript].editor.fontSize": 18
+            })
+            .as_object()
+            .unwrap(),
+            &primary,
+            std::slice::from_ref(&primary),
+            |_| None,
+        );
+
+        assert_eq!(
+            resolved.value_for_language("editor.tabSize", None, Some("typescript")),
+            Some(json!(4)),
+            "a higher workspace global must beat a lower user language override"
+        );
+        assert_eq!(
+            resolved.value_for_language("editor.fontSize", None, Some("typescript")),
+            Some(json!(18))
+        );
+        assert_eq!(
+            resolved.value_for_language("editor.fontSize", None, Some("rust")),
+            Some(json!(14))
+        );
+    }
+
+    #[test]
+    fn invalid_known_workspace_values_fall_back_to_the_lower_layer() {
+        let primary = PathBuf::from("/work/api");
+        let resolved = settings(
+            &primary,
+            std::slice::from_ref(&primary),
+            json!({ "editor.tabSize": "wide" }),
+            vec![],
+        );
+
+        assert_eq!(resolved.value("editor.tabSize", None), Some(json!(4)));
     }
 
     #[test]

@@ -34,11 +34,9 @@
 //! otherwise, so an executable script would silently stop being executable
 //! after one save.
 //!
-//! Windows: `fs::rename` fails when the destination exists, so the platform's
-//! `ReplaceFile`-equivalent path is used via a remove-then-rename fallback
-//! guarded to the smallest possible window. The temp file is already durable at
-//! that point, so the worst case is a leftover temp file with the full new
-//! contents, never a truncated target.
+//! Windows: `ReplaceFileW` atomically swaps an existing destination while
+//! preserving its metadata. A new destination uses a same-directory rename.
+//! Neither path removes the destination before the replacement is committed.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -187,22 +185,38 @@ fn replace(temp: &Path, target: &Path) -> io::Result<()> {
 
 /// Move the temp file over the target.
 ///
-/// `fs::rename` on Windows refuses an existing destination, so the target is
-/// removed first. That opens a window in which the target does not exist,
-/// which is a weaker guarantee than POSIX gives — but the temp file is already
-/// fully written and fsynced, so a crash inside the window leaves the complete
-/// new contents on disk under the temp name rather than a truncated target.
-/// The read path's recovery for a missing file is to report it missing, which
-/// is recoverable; a silently truncated source file is not.
+/// `ReplaceFileW` performs the existing-file swap as one filesystem operation.
+/// A destination that does not exist yet can be installed with a same-volume
+/// rename, which is also atomic.
 #[cfg(windows)]
 fn replace(temp: &Path, target: &Path) -> io::Result<()> {
-    match fs::rename(temp, target) {
-        Ok(()) => Ok(()),
-        Err(_) if target.exists() => {
-            fs::remove_file(target)?;
-            fs::rename(temp, target)
-        }
-        Err(error) => Err(error),
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+
+    use windows_sys::Win32::Storage::FileSystem::ReplaceFileW;
+
+    if !target.exists() {
+        return fs::rename(temp, target);
+    }
+
+    let target: Vec<u16> = target.as_os_str().encode_wide().chain(Some(0)).collect();
+    let temp: Vec<u16> = temp.as_os_str().encode_wide().chain(Some(0)).collect();
+    // SAFETY: both paths are owned, nul-terminated UTF-16 buffers that remain
+    // alive for the call. The optional backup and reserved pointers are null.
+    let replaced = unsafe {
+        ReplaceFileW(
+            target.as_ptr(),
+            temp.as_ptr(),
+            ptr::null(),
+            0,
+            ptr::null(),
+            ptr::null(),
+        )
+    };
+    if replaced == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
     }
 }
 

@@ -163,6 +163,10 @@ pub enum WorkspaceIssueKind {
     TooManyFolders,
     /// A top-level key this build does not know. Preserved, not dropped.
     UnknownKey,
+    /// A known setting failed schema or scope validation and was ignored.
+    InvalidSetting,
+    /// A live edit attempted to change the stable workspace identifier.
+    ChangedId,
 }
 
 /// One problem with the workspace document, with enough detail to point at it.

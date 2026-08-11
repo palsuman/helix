@@ -8,17 +8,19 @@
 //!    participates in the Task 1.2 lifecycle: dependency-ordered start,
 //!    health reporting, ordered shutdown (which cancels anything still in
 //!    flight).
-//! 3. Exposes the two `#[tauri::command]` entry points the frontend calls:
-//!    `ipc_dispatch` and `ipc_cancel`.
+//!
+//! The separate kernel process exposes this dispatcher through authenticated
+//! internal RPC. Tauri entry points live exclusively in `helix-supervisor`.
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::health::{ServiceHealth, ServiceMetrics};
-use helix_ipc::{CancelRequest, CancelResponse, IpcDispatcher, IpcRequest, IpcResponse};
+use helix_ipc::IpcDispatcher;
 
 /// Container service name for the IPC layer.
 pub const SERVICE_NAME: &str = "ipc";
@@ -79,6 +81,15 @@ impl HealthCheck for IpcService {
             error_count: self.dispatcher.error_count(),
         }
     }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_dispatcher = self.dispatcher.clone();
+        let metrics_dispatcher = self.dispatcher.clone();
+        Some(ServiceProbe::new(
+            move || IpcService::new(health_dispatcher.clone()).health(),
+            move || IpcService::new(metrics_dispatcher.clone()).metrics(),
+        ))
+    }
 }
 
 /// Register [`IpcService`] on a container as a supervised singleton.
@@ -91,37 +102,11 @@ pub fn register(
     })
 }
 
-/// Frontend entry point for every command. Returns a typed response
-/// envelope; transport-level failures are impossible here by construction,
-/// because command failures are carried *in* the envelope rather than as a
-/// rejected promise, which is what lets the frontend branch on error
-/// category (REQ-ARCH-003.1).
-#[tauri::command]
-pub async fn ipc_dispatch(
-    dispatcher: tauri::State<'_, Arc<IpcDispatcher>>,
-    request: IpcRequest<serde_json::Value>,
-) -> Result<IpcResponse<serde_json::Value>, String> {
-    Ok(dispatcher.dispatch(request).await)
-}
-
-/// Frontend entry point for cancellation by correlation ID
-/// (REQ-ARCH-003.2).
-#[tauri::command]
-pub fn ipc_cancel(
-    dispatcher: tauri::State<'_, Arc<IpcDispatcher>>,
-    request: CancelRequest,
-) -> CancelResponse {
-    let cancelled = dispatcher.cancel(&request.correlation_id);
-    CancelResponse {
-        correlation_id: request.correlation_id,
-        cancelled,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use helix_ipc::PING;
+    use helix_core::container::ServiceProvider;
+    use helix_ipc::{IpcRequest, PING};
 
     #[tokio::test]
     async fn ipc_service_publishes_the_dispatcher_and_reports_health() {
@@ -142,6 +127,15 @@ mod tests {
             Some(true),
             "dependents must be able to resolve the dispatcher from the container context"
         );
+
+        let _ = dispatcher
+            .dispatch(IpcRequest::new(
+                PING,
+                "live-metrics",
+                serde_json::json!({ "message": "count me" }),
+            ))
+            .await;
+        assert_eq!(container.metrics_of(SERVICE_NAME).unwrap().request_count, 1);
 
         container.stop_all().await.unwrap();
     }

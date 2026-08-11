@@ -280,6 +280,28 @@ async fn a_connection_without_the_launch_token_is_refused() {
 }
 
 #[tokio::test]
+async fn server_shutdown_closes_active_connections() {
+    let (_hub, server) = server_with(HubConfig::default()).await;
+    let mut client = connect(&server).await;
+
+    server.shutdown();
+
+    let closed = tokio::time::timeout(Duration::from_secs(1), async {
+        while let Some(message) = client.next().await {
+            match message {
+                Ok(Message::Close(_)) | Err(_) => break,
+                Ok(_) => {}
+            }
+        }
+    })
+    .await;
+    assert!(
+        closed.is_ok(),
+        "shutdown must close active sockets promptly"
+    );
+}
+
+#[tokio::test]
 async fn unsubscribing_stops_delivery_over_the_socket() {
     let (hub, server) = server_with(HubConfig::default()).await;
     let mut client = connect(&server).await;

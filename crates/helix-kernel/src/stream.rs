@@ -26,6 +26,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
@@ -209,6 +210,15 @@ impl HealthCheck for StreamService {
             request_count: hub.published,
             error_count: hub.dropped,
         }
+    }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_runtime = self.runtime.clone();
+        let metrics_runtime = self.runtime.clone();
+        Some(ServiceProbe::new(
+            move || StreamService::new(health_runtime.clone()).health(),
+            move || StreamService::new(metrics_runtime.clone()).metrics(),
+        ))
     }
 }
 

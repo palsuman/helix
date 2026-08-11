@@ -244,6 +244,11 @@ export class StreamClient {
       return;
     }
     if (generation !== this.generation || !this.wanted) return;
+    if (this.currentEndpoint && this.currentEndpoint.token !== endpoint.token) {
+      // A fresh launch starts channel sequences at 1. Resuming from the old
+      // launch's cursor would make those frames look like stale replays.
+      this.cursors.clear();
+    }
     this.currentEndpoint = endpoint;
 
     let socket: StreamSocket;

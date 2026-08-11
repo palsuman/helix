@@ -57,6 +57,10 @@ pub enum ServiceError {
     StopFailed(String, String),
     #[error("service '{0}' is not registered")]
     NotFound(String),
+    #[error("service '{0}' cannot resolve {1} dependency '{2}'")]
+    InvalidLifetimeDependency(String, String, String),
+    #[error("service scope '{0}' is not active")]
+    ScopeNotFound(String),
     #[error("service '{0}' panicked and exceeded its restart budget: {1}")]
     RestartBudgetExceeded(String, String),
 }
@@ -79,20 +83,37 @@ pub enum Lifetime {
 /// already-started dependency handles and a typed resource map so a
 /// dependent can resolve what it needs, guaranteed available because
 /// dependencies are always constructed before their dependents.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ServiceContext {
     handles: Arc<SyncRwLock<HashMap<String, ManagedHandle>>>,
     resources: Arc<SyncRwLock<HashMap<TypeId, Arc<dyn Any + Send + Sync>>>>,
+    parent: Option<Arc<ServiceContext>>,
 }
 
 impl ServiceContext {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            handles: Arc::new(SyncRwLock::new(HashMap::new())),
+            resources: Arc::new(SyncRwLock::new(HashMap::new())),
+            parent: None,
+        }
+    }
+
+    fn child(&self) -> Self {
+        Self {
+            handles: Arc::new(SyncRwLock::new(HashMap::new())),
+            resources: Arc::new(SyncRwLock::new(HashMap::new())),
+            parent: Some(Arc::new(self.clone())),
+        }
     }
 
     /// Resolve the shared handle of an already-started dependency by name.
     pub fn resolve_handle(&self, name: &str) -> Option<ManagedHandle> {
-        self.handles.read().unwrap().get(name).cloned()
+        self.handles.read().unwrap().get(name).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.resolve_handle(name))
+        })
     }
 
     fn publish_handle(&self, name: &str, handle: ManagedHandle) {
@@ -100,6 +121,10 @@ impl ServiceContext {
             .write()
             .unwrap()
             .insert(name.to_string(), handle);
+    }
+
+    fn remove_handle(&self, name: &str) {
+        self.handles.write().unwrap().remove(name);
     }
 
     /// Publish a typed shared resource for later retrieval via [`resolve`].
@@ -118,6 +143,17 @@ impl ServiceContext {
             .get(&TypeId::of::<T>())
             .cloned()
             .and_then(|arc| arc.downcast::<T>().ok())
+            .or_else(|| {
+                self.parent
+                    .as_ref()
+                    .and_then(|parent| parent.resolve::<T>())
+            })
+    }
+}
+
+impl Default for ServiceContext {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -156,6 +192,41 @@ pub trait Service: Send + Sync + 'static {
 pub trait HealthCheck: Send + Sync {
     fn health(&self) -> ServiceHealth;
     fn metrics(&self) -> ServiceMetrics;
+
+    /// A probe detached from the service instance's run-loop borrow.
+    /// Services backed by shared state return one so [`ManagedHandle`] can
+    /// report current health and metrics while `run()` is active.
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        None
+    }
+}
+
+/// Cloneable live health reader installed on a [`ManagedHandle`].
+#[derive(Clone)]
+pub struct ServiceProbe {
+    health: Arc<dyn Fn() -> ServiceHealth + Send + Sync>,
+    metrics: Arc<dyn Fn() -> ServiceMetrics + Send + Sync>,
+}
+
+impl ServiceProbe {
+    pub fn new<H, M>(health: H, metrics: M) -> Self
+    where
+        H: Fn() -> ServiceHealth + Send + Sync + 'static,
+        M: Fn() -> ServiceMetrics + Send + Sync + 'static,
+    {
+        Self {
+            health: Arc::new(health),
+            metrics: Arc::new(metrics),
+        }
+    }
+
+    fn health(&self) -> ServiceHealth {
+        (self.health)()
+    }
+
+    fn metrics(&self) -> ServiceMetrics {
+        (self.metrics)()
+    }
 }
 
 /// A service that is both lifecycle-managed and health-reportable. Blanket
@@ -181,6 +252,7 @@ pub struct ManagedHandle {
     name: &'static str,
     health: Arc<SyncRwLock<ServiceHealth>>,
     metrics: Arc<SyncRwLock<ServiceMetrics>>,
+    live_probe: Arc<SyncRwLock<Option<ServiceProbe>>>,
     restart_count: Arc<std::sync::atomic::AtomicU32>,
 }
 
@@ -190,10 +262,16 @@ impl ManagedHandle {
     }
 
     pub fn health(&self) -> ServiceHealth {
+        if let Some(probe) = self.live_probe.read().unwrap().clone() {
+            return probe.health();
+        }
         self.health.read().unwrap().clone()
     }
 
     pub fn metrics(&self) -> ServiceMetrics {
+        if let Some(probe) = self.live_probe.read().unwrap().clone() {
+            return probe.metrics();
+        }
         self.metrics.read().unwrap().clone()
     }
 
@@ -207,6 +285,11 @@ struct RunningService {
     stop_requested: Arc<AtomicBool>,
     stop_notify: Arc<Notify>,
     join: JoinHandle<()>,
+}
+
+struct ServiceScope {
+    ctx: ServiceContext,
+    running: HashMap<&'static str, RunningService>,
 }
 
 /// The default maximum number of consecutive panic/error restarts a single
@@ -238,6 +321,7 @@ pub struct ServiceContainer {
     descriptors: HashMap<&'static str, ServiceDescriptor>,
     registration_order: Vec<&'static str>,
     running: HashMap<&'static str, RunningService>,
+    scopes: HashMap<String, ServiceScope>,
 }
 
 impl Default for ServiceContainer {
@@ -253,6 +337,7 @@ impl ServiceContainer {
             descriptors: HashMap::new(),
             registration_order: Vec::new(),
             running: HashMap::new(),
+            scopes: HashMap::new(),
         }
     }
 
@@ -405,6 +490,22 @@ impl ServiceContainer {
     /// [`resolve_scoped`] and [`resolve_transient`].
     pub async fn start_all(&mut self) -> Result<(), ServiceError> {
         let order = self.topo_order()?;
+        for name in &order {
+            let descriptor = &self.descriptors[name];
+            if descriptor.lifetime != Lifetime::Singleton {
+                continue;
+            }
+            for dependency in &descriptor.dependencies {
+                let dependency_lifetime = self.descriptors[dependency].lifetime;
+                if dependency_lifetime != Lifetime::Singleton {
+                    return Err(ServiceError::InvalidLifetimeDependency(
+                        name.to_string(),
+                        format!("{:?}", dependency_lifetime).to_lowercase(),
+                        dependency.to_string(),
+                    ));
+                }
+            }
+        }
         for name in order {
             let is_singleton = self
                 .descriptors
@@ -428,16 +529,30 @@ impl ServiceContainer {
         let factory = descriptor.factory.clone();
         let ctx = self.ctx.clone();
 
+        let running = Self::start_managed(name, factory, ctx).await?;
+        self.running.insert(name, running);
+        Ok(())
+    }
+
+    async fn start_managed(
+        name: &'static str,
+        factory: Factory,
+        ctx: ServiceContext,
+    ) -> Result<RunningService, ServiceError> {
+        let published_ctx = ctx.clone();
+
         let health = Arc::new(SyncRwLock::new(ServiceHealth::Degraded {
             reason: "starting".into(),
             since_ms: 0,
         }));
         let metrics = Arc::new(SyncRwLock::new(ServiceMetrics::default()));
+        let live_probe = Arc::new(SyncRwLock::new(None));
         let restart_count = Arc::new(std::sync::atomic::AtomicU32::new(0));
         let handle = ManagedHandle {
             name,
             health: health.clone(),
             metrics: metrics.clone(),
+            live_probe: live_probe.clone(),
             restart_count: restart_count.clone(),
         };
         ctx.publish_handle(name, handle.clone());
@@ -459,6 +574,9 @@ impl ServiceContainer {
                     let factory = factory.clone();
                     let stop_requested_inner = stop_requested.clone();
                     let stop_notify_inner = stop_notify.clone();
+                    let attempt_health = health.clone();
+                    let attempt_metrics = metrics.clone();
+                    let attempt_probe = live_probe.clone();
 
                     // Signalled as soon as `start()` returns, independent
                     // of how long the subsequent `run()` loop lives (which
@@ -474,6 +592,7 @@ impl ServiceContainer {
                     // unwinding into this supervisor loop or any other
                     // service's task.
                     let attempt_task = tokio::spawn(async move {
+                        *attempt_probe.write().unwrap() = None;
                         let mut instance = match factory(&ctx) {
                             Ok(i) => i,
                             Err(e) => {
@@ -481,10 +600,13 @@ impl ServiceContainer {
                                 return Err(e);
                             }
                         };
+                        *attempt_probe.write().unwrap() = instance.live_probe();
                         if let Err(e) = instance.start(&ctx).await {
                             let _ = phase_tx.send(Err(e.clone()));
                             return Err(e);
                         }
+                        *attempt_health.write().unwrap() = instance.health();
+                        *attempt_metrics.write().unwrap() = instance.metrics();
                         let _ = phase_tx.send(Ok(()));
                         loop {
                             tokio::select! {
@@ -512,11 +634,8 @@ impl ServiceContainer {
                         Err(_) => false,
                     };
 
-                    if start_phase_ok {
-                        *health.write().unwrap() = ServiceHealth::Healthy;
-                        if let Some(tx) = started_tx.take() {
-                            let _ = tx.send(Ok(()));
-                        }
+                    if start_phase_ok && let Some(tx) = started_tx.take() {
+                        let _ = tx.send(Ok(()));
                     }
 
                     // Now await the full attempt (blocks until run() ends,
@@ -536,6 +655,7 @@ impl ServiceContainer {
                             break;
                         }
                         Ok(Err(service_err)) => {
+                            *live_probe.write().unwrap() = None;
                             let reason = service_err.to_string();
                             attempt += 1;
                             restart_count.store(attempt, Ordering::SeqCst);
@@ -565,6 +685,7 @@ impl ServiceContainer {
                             continue;
                         }
                         Err(join_err) => {
+                            *live_probe.write().unwrap() = None;
                             // Panic (or cancellation) inside the attempt task,
                             // whether during construct/start or during run().
                             attempt += 1;
@@ -608,36 +729,45 @@ impl ServiceContainer {
         // background.
         match started_rx.await {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => return Err(e),
+            Ok(Err(e)) => {
+                published_ctx.remove_handle(name);
+                return Err(e);
+            }
             Err(_) => {
                 // Sender dropped without sending: treat as started, health
                 // reflects the real state.
             }
         }
 
-        self.running.insert(
-            name,
-            RunningService {
-                handle,
-                stop_requested,
-                stop_notify,
-                join,
-            },
-        );
-        Ok(())
+        Ok(RunningService {
+            handle,
+            stop_requested,
+            stop_notify,
+            join,
+        })
     }
 
     /// Stop every running singleton in reverse registration order
     /// (REQ-ARCH-002.4).
     pub async fn stop_all(&mut self) -> Result<(), ServiceError> {
         let mut first_err = None;
-        let order: Vec<&'static str> = self.registration_order.iter().rev().copied().collect();
-        for name in order {
-            if let Some(running) = self.running.remove(name)
-                && let Err(e) = Self::stop_one(name, running).await
+        let scope_keys: Vec<String> = self.scopes.keys().cloned().collect();
+        for scope_key in scope_keys {
+            if let Err(error) = self.stop_scope(&scope_key).await
                 && first_err.is_none()
             {
-                first_err = Some(e);
+                first_err = Some(error);
+            }
+        }
+        let order: Vec<&'static str> = self.registration_order.iter().rev().copied().collect();
+        for name in order {
+            if let Some(running) = self.running.remove(name) {
+                self.ctx.remove_handle(name);
+                if let Err(e) = Self::stop_one(name, running).await
+                    && first_err.is_none()
+                {
+                    first_err = Some(e);
+                }
             }
         }
         match first_err {
@@ -674,7 +804,114 @@ impl ServiceContainer {
                 "{name} is not registered as Transient"
             )));
         }
+        for dependency in &descriptor.dependencies {
+            if self.ctx.resolve_handle(dependency).is_none() {
+                return Err(ServiceError::InvalidLifetimeDependency(
+                    name.to_string(),
+                    "unresolved".into(),
+                    dependency.to_string(),
+                ));
+            }
+        }
         (descriptor.factory)(&self.ctx)
+    }
+
+    /// Start one instance of every scoped service for `scope_key`.
+    /// Re-entering an active scope is idempotent; another scope receives
+    /// distinct instances and a distinct resource map while still resolving
+    /// global singleton dependencies through its parent context.
+    pub async fn start_scope(&mut self, scope_key: impl Into<String>) -> Result<(), ServiceError> {
+        let scope_key = scope_key.into();
+        if self.scopes.contains_key(&scope_key) {
+            return Ok(());
+        }
+        self.start_all().await?;
+
+        let order = self.topo_order()?;
+        let ctx = self.ctx.child();
+        let mut running = HashMap::new();
+        for name in order {
+            let descriptor = &self.descriptors[name];
+            if descriptor.lifetime != Lifetime::Scoped {
+                continue;
+            }
+            for dependency in &descriptor.dependencies {
+                let dependency_lifetime = self.descriptors[dependency].lifetime;
+                if dependency_lifetime == Lifetime::Transient {
+                    let _ = Self::stop_services(&self.registration_order, &ctx, &mut running).await;
+                    return Err(ServiceError::InvalidLifetimeDependency(
+                        name.to_string(),
+                        "transient".into(),
+                        dependency.to_string(),
+                    ));
+                }
+                if ctx.resolve_handle(dependency).is_none() {
+                    let _ = Self::stop_services(&self.registration_order, &ctx, &mut running).await;
+                    return Err(ServiceError::InvalidLifetimeDependency(
+                        name.to_string(),
+                        "unresolved".into(),
+                        dependency.to_string(),
+                    ));
+                }
+            }
+            let service = Self::start_managed(name, descriptor.factory.clone(), ctx.clone()).await;
+            match service {
+                Ok(service) => {
+                    running.insert(name, service);
+                }
+                Err(error) => {
+                    let _ = Self::stop_services(&self.registration_order, &ctx, &mut running).await;
+                    return Err(error);
+                }
+            }
+        }
+        self.scopes.insert(scope_key, ServiceScope { ctx, running });
+        Ok(())
+    }
+
+    /// Resolve the supervised instance for a service in an active scope.
+    pub fn resolve_scoped(
+        &self,
+        scope_key: &str,
+        name: &str,
+    ) -> Result<ManagedHandle, ServiceError> {
+        let scope = self
+            .scopes
+            .get(scope_key)
+            .ok_or_else(|| ServiceError::ScopeNotFound(scope_key.to_string()))?;
+        scope
+            .running
+            .get(name)
+            .map(|service| service.handle.clone())
+            .ok_or_else(|| ServiceError::NotFound(name.to_string()))
+    }
+
+    /// Stop and release one scope in reverse registration order.
+    pub async fn stop_scope(&mut self, scope_key: &str) -> Result<(), ServiceError> {
+        let mut scope = self
+            .scopes
+            .remove(scope_key)
+            .ok_or_else(|| ServiceError::ScopeNotFound(scope_key.to_string()))?;
+        Self::stop_services(&self.registration_order, &scope.ctx, &mut scope.running).await
+    }
+
+    async fn stop_services(
+        registration_order: &[&'static str],
+        ctx: &ServiceContext,
+        running: &mut HashMap<&'static str, RunningService>,
+    ) -> Result<(), ServiceError> {
+        let mut first_error = None;
+        for name in registration_order.iter().rev().copied() {
+            if let Some(service) = running.remove(name) {
+                ctx.remove_handle(name);
+                if let Err(error) = Self::stop_one(name, service).await
+                    && first_error.is_none()
+                {
+                    first_error = Some(error);
+                }
+            }
+        }
+        first_error.map_or(Ok(()), Err)
     }
 
     /// The handle of a running singleton, if started.
@@ -951,6 +1188,259 @@ mod tests {
 
         container.stop_all().await.unwrap();
         assert!(stopped.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn scoped_services_are_distinct_per_scope_and_stop_with_their_scope() {
+        let mut container = ServiceContainer::new();
+        let singleton_started = Arc::new(AtomicBool::new(false));
+        let singleton_stopped = Arc::new(AtomicBool::new(false));
+        let constructed = Arc::new(AtomicU32::new(0));
+        let stopped = Arc::new(AtomicU32::new(0));
+
+        container
+            .register(
+                "global",
+                &[],
+                Lifetime::Singleton,
+                simple_factory(
+                    "global",
+                    &[],
+                    singleton_started.clone(),
+                    singleton_stopped.clone(),
+                ),
+            )
+            .unwrap();
+        container
+            .register("workspace", &["global"], Lifetime::Scoped, {
+                let constructed = constructed.clone();
+                let stopped = stopped.clone();
+                move |ctx| {
+                    assert!(ctx.resolve_handle("global").is_some());
+                    constructed.fetch_add(1, Ordering::SeqCst);
+                    Ok(Box::new(CountingService {
+                        stopped: stopped.clone(),
+                    }) as Box<dyn ManagedService>)
+                }
+            })
+            .unwrap();
+
+        container.start_scope("alpha").await.unwrap();
+        container.start_scope("alpha").await.unwrap();
+        container.start_scope("beta").await.unwrap();
+
+        assert_eq!(constructed.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            container
+                .resolve_scoped("alpha", "workspace")
+                .unwrap()
+                .name(),
+            "workspace"
+        );
+        assert_eq!(
+            container
+                .resolve_scoped("beta", "workspace")
+                .unwrap()
+                .name(),
+            "workspace"
+        );
+
+        container.stop_scope("alpha").await.unwrap();
+        assert_eq!(stopped.load(Ordering::SeqCst), 1);
+        assert!(container.resolve_scoped("alpha", "workspace").is_err());
+        assert!(container.resolve_scoped("beta", "workspace").is_ok());
+
+        container.stop_all().await.unwrap();
+        assert_eq!(stopped.load(Ordering::SeqCst), 2);
+        assert!(singleton_stopped.load(Ordering::SeqCst));
+    }
+
+    struct CountingService {
+        stopped: Arc<AtomicU32>,
+    }
+
+    #[async_trait]
+    impl Service for CountingService {
+        fn name(&self) -> &'static str {
+            "workspace"
+        }
+
+        async fn start(&mut self, _ctx: &ServiceContext) -> Result<(), ServiceError> {
+            Ok(())
+        }
+
+        async fn stop(&mut self) -> Result<(), ServiceError> {
+            self.stopped.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    impl HealthCheck for CountingService {
+        fn health(&self) -> ServiceHealth {
+            ServiceHealth::Degraded {
+                reason: "test probe".into(),
+                since_ms: 7,
+            }
+        }
+
+        fn metrics(&self) -> ServiceMetrics {
+            ServiceMetrics {
+                request_count: 11,
+                ..ServiceMetrics::default()
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_service_start_publishes_its_reported_health_and_metrics() {
+        let mut container = ServiceContainer::new();
+        container
+            .register("workspace", &[], Lifetime::Singleton, {
+                move |_ctx| {
+                    Ok(Box::new(CountingService {
+                        stopped: Arc::new(AtomicU32::new(0)),
+                    }) as Box<dyn ManagedService>)
+                }
+            })
+            .unwrap();
+
+        container.start_all().await.unwrap();
+        assert!(matches!(
+            container.health_of("workspace"),
+            Some(ServiceHealth::Degraded { reason, since_ms: 7 }) if reason == "test probe"
+        ));
+        assert_eq!(container.metrics_of("workspace").unwrap().request_count, 11);
+        container.stop_all().await.unwrap();
+    }
+
+    struct LiveProbeService {
+        requests: Arc<AtomicU32>,
+    }
+
+    #[async_trait]
+    impl Service for LiveProbeService {
+        fn name(&self) -> &'static str {
+            "live"
+        }
+
+        async fn start(&mut self, _ctx: &ServiceContext) -> Result<(), ServiceError> {
+            Ok(())
+        }
+    }
+
+    impl HealthCheck for LiveProbeService {
+        fn health(&self) -> ServiceHealth {
+            ServiceHealth::Healthy
+        }
+
+        fn metrics(&self) -> ServiceMetrics {
+            ServiceMetrics {
+                request_count: u64::from(self.requests.load(Ordering::SeqCst)),
+                ..ServiceMetrics::default()
+            }
+        }
+
+        fn live_probe(&self) -> Option<ServiceProbe> {
+            let health_requests = self.requests.clone();
+            let metric_requests = self.requests.clone();
+            Some(ServiceProbe::new(
+                move || {
+                    if health_requests.load(Ordering::SeqCst) == 0 {
+                        ServiceHealth::Healthy
+                    } else {
+                        ServiceHealth::Degraded {
+                            reason: "activity observed".into(),
+                            since_ms: 1,
+                        }
+                    }
+                },
+                move || ServiceMetrics {
+                    request_count: u64::from(metric_requests.load(Ordering::SeqCst)),
+                    ..ServiceMetrics::default()
+                },
+            ))
+        }
+    }
+
+    #[tokio::test]
+    async fn a_managed_handle_reads_live_health_and_metrics_after_startup() {
+        let requests = Arc::new(AtomicU32::new(0));
+        let mut container = ServiceContainer::new();
+        container
+            .register("live", &[], Lifetime::Singleton, {
+                let requests = requests.clone();
+                move |_ctx| {
+                    Ok(Box::new(LiveProbeService {
+                        requests: requests.clone(),
+                    }) as Box<dyn ManagedService>)
+                }
+            })
+            .unwrap();
+        container.start_all().await.unwrap();
+        assert_eq!(container.health_of("live"), Some(ServiceHealth::Healthy));
+
+        requests.store(9, Ordering::SeqCst);
+        assert!(matches!(
+            container.health_of("live"),
+            Some(ServiceHealth::Degraded { .. })
+        ));
+        assert_eq!(container.metrics_of("live").unwrap().request_count, 9);
+        container.stop_all().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn singleton_cannot_depend_on_a_scoped_service() {
+        let mut container = ServiceContainer::new();
+        let flag = || Arc::new(AtomicBool::new(false));
+        container
+            .register(
+                "workspace",
+                &[],
+                Lifetime::Scoped,
+                simple_factory("workspace", &[], flag(), flag()),
+            )
+            .unwrap();
+        container
+            .register(
+                "global",
+                &["workspace"],
+                Lifetime::Singleton,
+                simple_factory("global", &["workspace"], flag(), flag()),
+            )
+            .unwrap();
+
+        assert_eq!(
+            container.start_all().await,
+            Err(ServiceError::InvalidLifetimeDependency(
+                "global".into(),
+                "scoped".into(),
+                "workspace".into(),
+            ))
+        );
+    }
+
+    #[test]
+    fn transient_resolution_constructs_a_fresh_instance_each_time() {
+        let mut container = ServiceContainer::new();
+        let constructed = Arc::new(AtomicU32::new(0));
+        container
+            .register("transient", &[], Lifetime::Transient, {
+                let constructed = constructed.clone();
+                move |_ctx| {
+                    constructed.fetch_add(1, Ordering::SeqCst);
+                    Ok(Box::new(SimpleService {
+                        name: "transient",
+                        deps: &[],
+                        started: Arc::new(AtomicBool::new(false)),
+                        stopped: Arc::new(AtomicBool::new(false)),
+                    }) as Box<dyn ManagedService>)
+                }
+            })
+            .unwrap();
+
+        let _first = container.resolve_transient("transient").unwrap();
+        let _second = container.resolve_transient("transient").unwrap();
+        assert_eq!(constructed.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]

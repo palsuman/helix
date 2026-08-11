@@ -113,6 +113,8 @@ pub struct WorkspaceSettingsRequest {
     /// A single dotted setting key, when the caller wants one value rather than
     /// the whole tree.
     pub setting: Option<String>,
+    /// Language id whose overrides should participate in resolution.
+    pub language: Option<String>,
 }
 
 /// `workspace.settings` response.

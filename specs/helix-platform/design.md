@@ -16,45 +16,47 @@ This design document specifies the architecture, component interfaces, data mode
 
 **Technology Stack:**
 
-The Version column records the **supported major line**, which is an architectural commitment. Exact versions are a repository concern and live in `Cargo.lock` and the npm lockfile, selected at Task 1.1. `latest` is not a version and appears nowhere in this table or in any manifest.
+The Supported line column records the architectural compatibility commitment. The Chosen version column records the exact Task 1.1 selection; `Cargo.lock` and the npm lockfiles remain authoritative for transitive resolution. Components assigned to later tasks remain unselected until their implementation lands. `latest` is not a version and appears nowhere in this table or in a manifest.
 
-| Layer | Technology | Supported line | Purpose |
-|-------|-----------|---------|---------|
-| Desktop framework | Tauri | 2.x | Window management, IPC, native APIs, bundling |
-| Kernel language | Rust | 2024 edition, current stable toolchain pinned by `rust-toolchain.toml` | Performance, safety, concurrency |
-| Frontend framework | React | 18.x or 19.x, one chosen at scaffold | UI rendering |
-| State management | Zustand | 4.x | Lightweight frontend state (UI-only) |
-| Code editor | Monaco Editor | 0.x, exact pin required | Text editing, syntax, completions |
-| Terminal | xterm.js | 5.x | Terminal rendering in webview |
-| TypeScript compiler | tsc (native) | 7.x | Native Go-based compiler (8-12x faster) |
-| Bundler | Vite | 5.x or newer LTS line | Frontend build tooling |
-| Styling | CSS Modules + CSS Variables | — | Scoped styles, theming via custom properties |
-| Type generation | ts-rs or specta | 0.x, exact pin required | Rust types → TypeScript interfaces |
-| File watching | notify | 6.x | Cross-platform filesystem events |
-| Git | gitoxide (gix) | 0.x, exact pin required | High-performance git operations |
-| Search | ripgrep (`grep` crate) | 0.x, exact pin required | Fast text search |
-| Tree-sitter | tree-sitter (WASM) | 0.x, exact pin required | Syntax parsing in frontend |
-| WASM runtime | wasmtime | single major line, tracked with security releases | Plugin sandbox |
-| Serialization | serde + JSON | 1.x | IPC, config, state persistence |
-| Async runtime | tokio | 1.x | Async I/O in kernel |
-| HTTP client | reqwest | 0.x, exact pin required | LLM API calls, marketplace |
-| Crypto | ring / ed25519-dalek | single major line, tracked with security releases | Plugin signing, checksums |
-| Credential store | keyring / security-framework / windows-credentials | single major line per platform crate | OS keychain access per platform |
-| Localization | ICU MessageFormat (fluent or icu4x) | single major line, one library chosen at Task 2.9 | Message catalogs, pluralization, formatting |
-| Text segmentation | unicode-segmentation | 1.x | Grapheme-cluster cursor movement |
-| Token counting | tiktoken-rs | 0.x, exact pin required | Budget accounting for OpenAI-family models |
-| Metrics | hdrhistogram | 7.x | Latency percentiles for telemetry and gates |
-| Crash capture | minidump-writer | 0.x, exact pin required | Kernel panic minidumps |
-| Testing (Rust) | cargo test + criterion | 0.5.x or newer | Unit, integration, benchmarks |
-| Testing (TS) | Vitest | 2.x or newer | Frontend tests |
-| E2E testing (packaged app) | WebdriverIO + `@wdio/tauri-service` | 9.x | Real binary, all three platforms |
-| E2E testing (renderer only) | WebdriverIO browser mode, or Playwright | current major | Fast frontend-only scenarios against Vite |
+| Layer | Technology | Supported line | Chosen version | Purpose |
+|-------|-----------|----------------|----------------|---------|
+| Desktop framework | Tauri | 2.x | Core 2.11.5, CLI 2.11.4 | Window management, IPC, native APIs, bundling |
+| Kernel language | Rust | 2024 edition, pinned stable toolchain | 1.97.1 | Performance, safety, concurrency |
+| Build runtime | Node.js | 24.x | 24.0.2 | Frontend builds and repository checks |
+| Frontend framework | React | 19.x | 19.2.8 | UI rendering |
+| State management | Zustand | 5.x | 5.0.14 | Lightweight frontend state (UI-only) |
+| Code editor | Monaco Editor | 0.x, exact pin required | Not selected (Task 4.1) | Text editing, syntax, completions |
+| Terminal | xterm.js | 5.x | Not selected (Task 6.1) | Terminal rendering in webview |
+| TypeScript compiler | tsc (native) | 7.x | 7.0.2 | Native Go-based compiler (8-12x faster) |
+| Bundler | Vite | 8.x | 8.2.1 | Frontend build tooling |
+| Frontend quality | ESLint + Prettier | 10.x / 3.x | 10.8.0 / 3.9.6 | Static analysis and deterministic formatting |
+| Styling | CSS Modules + CSS Variables | — | Built in | Scoped styles, theming via custom properties |
+| Type generation | ts-rs | 12.x | 12.0.1 | Rust types → TypeScript interfaces |
+| File watching | notify | 6.x | 6.1.1 | Cross-platform filesystem events |
+| Git | gitoxide (gix) | 0.x, exact pin required | Not selected (Task 7.1) | High-performance git operations |
+| Search | ripgrep (`grep` crate) | 0.x, exact pin required | Not selected (Task 4.5) | Fast text search |
+| Tree-sitter | tree-sitter (WASM) | 0.x, exact pin required | Not selected (Task 5.7) | Syntax parsing in frontend |
+| WASM runtime | wasmtime | Single security-supported major | Not selected (Task 17.1) | Plugin sandbox |
+| Serialization | serde + JSON | 1.x | serde 1.0.228, serde_json 1.0.145 | IPC, config, state persistence |
+| Async runtime | tokio | 1.x | 1.53.1 | Async I/O in kernel |
+| HTTP client | reqwest | 0.x, exact pin required | Not selected (Task 8.1) | LLM API calls, marketplace |
+| Crypto | ring / ed25519-dalek | Single security-supported major | Not selected (Task 15.3) | Plugin signing, checksums |
+| Credential store | keyring / platform APIs | Single major per platform crate | Not selected (Task 1.12) | OS keychain access per platform |
+| Localization | ICU MessageFormat (fluent or icu4x) | One selected major | Not selected (Task 2.9) | Message catalogs, pluralization, formatting |
+| Text segmentation | unicode-segmentation | 1.x | Not selected (Task 4.2) | Grapheme-cluster cursor movement |
+| Token counting | tiktoken-rs | 0.x, exact pin required | Not selected (Task 8.1) | Budget accounting for OpenAI-family models |
+| Metrics | hdrhistogram | 7.x | Not selected (Task 9.7) | Latency percentiles for telemetry and gates |
+| Crash capture | minidump-writer | 0.x, exact pin required | Not selected (Task 13.1) | Kernel panic minidumps |
+| Testing (Rust) | cargo test + criterion | criterion 0.5.x or newer | cargo 1.97.1; criterion not selected | Unit, integration, benchmarks |
+| Testing (TS) | Vitest | 4.x | 4.1.10 | Frontend tests |
+| E2E testing (packaged app) | WebdriverIO + `@wdio/tauri-service` | 9.x | Not selected (Task 3.5) | Real binary, all three platforms |
+| E2E testing (renderer only) | WebdriverIO browser mode, or Playwright | Current selected major | Not selected (Task 3.5) | Fast frontend-only scenarios against Vite |
 
 **Dependency pinning policy.**
 
 Rows marked "exact pin required" are pre-1.0 crates and packages where a minor bump is a breaking change by semver convention. Pinning them exactly is not caution, it is the only correct reading of `0.x`.
 
-1. Every dependency is declared with an exact version. No `latest`, no `*`, no bare caret on a `0.x` dependency.
+1. Every external dependency is declared with an exact version: `x.y.z` in npm manifests and `=x.y.z` in Cargo manifests. No ranges or floating tags are allowed.
 2. Lockfiles are committed for both trees and are the single source of truth for what actually builds.
 3. A CI check fails the build on any floating specifier, so the policy cannot decay quietly.
 4. Version bumps are a reviewed change with a stated reason, batched on a schedule rather than applied ad hoc, and gated by the existing benchmark and vulnerability-scanning jobs.

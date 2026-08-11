@@ -1930,6 +1930,7 @@ Regenerating this list after any change to a `_Depends on:` line is mandatory. T
 ```json
 {
   "generatedFrom": "_Depends on: lines in this document, plus tier release gating",
+  "criticalPath": ["1.1", "1.2", "1.5", "1.6", "1.8", "1.13", "5.1", "5.8", "6.2", "9.6", "9.7"],
   "waves": [
     { "wave": 1, "name": "Bootstrap", "tasks": ["1.1"] },
     { "wave": 2, "name": "Service container", "tasks": ["1.2"] },

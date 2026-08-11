@@ -67,8 +67,27 @@ pub fn is_generated_id(candidate: &str) -> bool {
 /// than the same workspace with the drive attached, and its state would move
 /// out from under it exactly when a user least wants surprises.
 pub fn canonical_path(path: &Path) -> PathBuf {
-    let resolved = std::fs::canonicalize(path).unwrap_or_else(|_| crate::model::normalize(path));
-    strip_verbatim(&resolved)
+    if let Ok(resolved) = std::fs::canonicalize(path) {
+        return strip_verbatim(&resolved);
+    }
+
+    let mut ancestor = path;
+    let mut missing = Vec::new();
+    while let Some(name) = ancestor.file_name() {
+        missing.push(name.to_os_string());
+        let Some(parent) = ancestor.parent() else {
+            break;
+        };
+        ancestor = parent;
+        if let Ok(mut resolved) = std::fs::canonicalize(ancestor) {
+            for component in missing.iter().rev() {
+                resolved.push(component);
+            }
+            return strip_verbatim(&resolved);
+        }
+    }
+
+    strip_verbatim(&crate::model::normalize(path))
 }
 
 /// Windows canonicalization returns the `\\?\` verbatim form, which is correct

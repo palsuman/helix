@@ -9,4 +9,6 @@ export type ConfigListRequest = {
    */
   prefix: string | null;
   language: string | null;
+  workspace_key: string | null;
+  path: string | null;
 };

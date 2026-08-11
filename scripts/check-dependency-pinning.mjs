@@ -1,30 +1,29 @@
 #!/usr/bin/env node
-// Task 1.1: CI check rejecting floating dependency specifiers ("latest",
-// "*", and carets on 0.x) in any manifest, per the design document's
-// dependency pinning policy.
+// Task 1.1: CI check rejecting every non-exact external dependency specifier
+// in a repository manifest, per the design document's pinning policy.
 //
 // Scans every package.json (dependencies/devDependencies/optionalDependencies)
 // and every Cargo.toml ([dependencies]/[dev-dependencies]/[build-dependencies]
 // and their workspace.dependencies equivalents) in the repository.
 
 import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const REPO_ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([a-zA-Z]):/, "$1:");
 
 /** @returns {string[]} */
-function listTrackedFiles(pattern) {
-  const out = execSync(`git ls-files "${pattern}"`, {
+function listTrackedFiles(fileName) {
+  const out = execFileSync("git", ["ls-files", "-z", "--", fileName, `:(glob)**/${fileName}`], {
     cwd: REPO_ROOT,
     encoding: "utf8",
   });
-  return out.split("\n").filter(Boolean);
+  return out.split("\0").filter(Boolean);
 }
 
 let violations = [];
 
 // ---- package.json ---------------------------------------------------
-const packageJsonFiles = listTrackedFiles("**/package.json").filter(
+const packageJsonFiles = listTrackedFiles("package.json").filter(
   (f) => !f.includes("node_modules/"),
 );
 
@@ -37,22 +36,15 @@ for (const file of packageJsonFiles) {
     if (!deps) continue;
     for (const [name, spec] of Object.entries(deps)) {
       if (typeof spec !== "string") continue; // workspace:* protocol objects, etc.
-      if (spec === "latest" || spec === "*" || spec === "") {
-        violations.push(`${file}: ${field}.${name} = "${spec}" (floating specifier)`);
-        continue;
-      }
-      // Reject bare ranges (^, ~, >=, x, latest tags) — require exact versions.
-      if (/^[\^~]/.test(spec)) {
-        violations.push(`${file}: ${field}.${name} = "${spec}" (caret/tilde range, not exact)`);
-      } else if (/[<>x]/i.test(spec) || spec.includes("||")) {
-        violations.push(`${file}: ${field}.${name} = "${spec}" (range specifier, not exact)`);
+      if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(spec)) {
+        violations.push(`${file}: ${field}.${name} = "${spec}" (not an exact version)`);
       }
     }
   }
 }
 
 // ---- Cargo.toml -------------------------------------------------------
-const cargoTomlFiles = listTrackedFiles("**/Cargo.toml");
+const cargoTomlFiles = listTrackedFiles("Cargo.toml");
 
 function extractDepSpecs(tomlText) {
   const specs = [];
@@ -96,21 +88,8 @@ for (const file of cargoTomlFiles) {
       }
       continue;
     }
-    if (version === "*" || version.toLowerCase() === "latest") {
-      violations.push(`${file}: ${name} = "${version}" (floating specifier)`);
-      continue;
-    }
-    // Cargo's default (bare "1.2.3") is a caret requirement. Bare carets on
-    // 0.x are explicitly disallowed by the design doc's pinning policy
-    // because a 0.x minor bump is a breaking change by semver convention.
-    const isZeroX = /^0\.\d+/.test(version);
-    if (isZeroX) {
-      violations.push(
-        `${file}: ${name} = "${version}" is a 0.x dependency using an implicit caret requirement; pin the exact version (e.g. "=${version}")`,
-      );
-    }
-    if (version.startsWith("^") && /^\^0\./.test(version)) {
-      violations.push(`${file}: ${name} = "${version}" (explicit caret on 0.x)`);
+    if (!/^=\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+      violations.push(`${file}: ${name} = "${version}" (Cargo dependencies require =x.y.z)`);
     }
   }
 }
@@ -119,7 +98,7 @@ if (violations.length > 0) {
   console.error("Dependency pinning policy violations found:\n");
   for (const v of violations) console.error(`  - ${v}`);
   console.error(
-    "\nSee design.md 'Dependency pinning policy': every dependency must be an exact version. No `latest`, no `*`, no bare caret on a 0.x dependency.",
+    "\nSee design.md 'Dependency pinning policy': npm dependencies require x.y.z and Cargo dependencies require =x.y.z.",
   );
   process.exit(1);
 }

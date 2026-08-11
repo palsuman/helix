@@ -4,4 +4,10 @@
  * What a workspace document could not be taken at its word about.
  */
 export type WorkspaceIssueKind =
-  "missing_id" | "type_mismatch" | "duplicate_folder" | "too_many_folders" | "unknown_key";
+  | "missing_id"
+  | "type_mismatch"
+  | "duplicate_folder"
+  | "too_many_folders"
+  | "unknown_key"
+  | "invalid_setting"
+  | "changed_id";

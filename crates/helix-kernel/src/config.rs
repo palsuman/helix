@@ -25,6 +25,7 @@
 //! full second.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -38,12 +39,14 @@ use helix_config::{
 };
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
 use helix_ipc::IpcDispatcher;
 use helix_log::{LogLevel, Logger, log_info, log_warn};
 use helix_stream::StreamHub;
+use helix_workspace::WorkspaceService;
 
 /// Container service name for the configuration layer.
 pub const SERVICE_NAME: &str = "config";
@@ -66,11 +69,27 @@ pub fn build_service(logger: Arc<Logger>) -> Arc<ConfigService> {
 /// Each handler closes over the shared service rather than being a method on
 /// the managed wrapper, so the command surface is testable without starting the
 /// container.
-pub fn register_commands(dispatcher: &mut IpcDispatcher, config: Arc<ConfigService>) {
+pub fn register_commands(
+    dispatcher: &mut IpcDispatcher,
+    config: Arc<ConfigService>,
+    workspace: Option<Arc<WorkspaceService>>,
+) {
     let get_config = config.clone();
+    let get_workspace = workspace.clone();
     dispatcher.register(GET, move |req: ConfigGetRequest, _ctx| {
         let config = get_config.clone();
+        let workspace = get_workspace.clone();
         async move {
+            let scoped;
+            let config = match req.workspace_key.as_deref() {
+                Some(key) => {
+                    let workspace = workspace.as_ref().ok_or_else(workspace_unavailable)?;
+                    let path = req.path.as_deref().map(std::path::Path::new);
+                    scoped = workspace.config_view(key, path)?;
+                    &scoped
+                }
+                None => config.as_ref(),
+            };
             Ok::<ConfigGetResponse, AppError>(ConfigGetResponse {
                 setting: config.get(&req.key, req.language.as_deref()),
             })
@@ -78,42 +97,106 @@ pub fn register_commands(dispatcher: &mut IpcDispatcher, config: Arc<ConfigServi
     });
 
     let set_config = config.clone();
+    let set_workspace = workspace.clone();
     dispatcher.register(SET, move |req: ConfigSetRequest, _ctx| {
         let config = set_config.clone();
+        let workspace = set_workspace.clone();
         async move {
-            let change = config.set(req.scope, &req.key, req.value, req.language.as_deref())?;
-            Ok::<ConfigWriteResponse, AppError>(write_response(
-                &config,
-                change,
-                &req.key,
-                req.language.as_deref(),
-            ))
+            match req.scope {
+                ConfigScope::Workspace | ConfigScope::Folder => {
+                    let workspace = workspace.as_ref().ok_or_else(workspace_unavailable)?;
+                    let workspace_key = req
+                        .workspace_key
+                        .as_deref()
+                        .ok_or_else(workspace_key_required)?;
+                    let path = req.path.as_deref().map(std::path::Path::new);
+                    let (change, setting) = workspace.set_config(
+                        workspace_key,
+                        path,
+                        req.scope,
+                        &req.key,
+                        req.value,
+                        req.language.as_deref(),
+                    )?;
+                    Ok::<ConfigWriteResponse, AppError>(write_response(change, setting))
+                }
+                _ => {
+                    let change =
+                        config.set(req.scope, &req.key, req.value, req.language.as_deref())?;
+                    let setting = contextual_setting(
+                        &config,
+                        workspace.as_deref(),
+                        req.workspace_key.as_deref(),
+                        req.path.as_deref(),
+                        &req.key,
+                        req.language.as_deref(),
+                    )?;
+                    Ok(write_response(change, setting))
+                }
+            }
         }
     });
 
     let reset_config = config.clone();
+    let reset_workspace = workspace.clone();
     dispatcher.register(RESET, move |req: ConfigResetRequest, _ctx| {
         let config = reset_config.clone();
+        let workspace = reset_workspace.clone();
         async move {
-            let change = config.reset(req.scope, &req.key, req.language.as_deref())?;
-            Ok::<ConfigWriteResponse, AppError>(write_response(
-                &config,
-                change,
-                &req.key,
-                req.language.as_deref(),
-            ))
+            match req.scope {
+                ConfigScope::Workspace | ConfigScope::Folder => {
+                    let workspace = workspace.as_ref().ok_or_else(workspace_unavailable)?;
+                    let workspace_key = req
+                        .workspace_key
+                        .as_deref()
+                        .ok_or_else(workspace_key_required)?;
+                    let path = req.path.as_deref().map(std::path::Path::new);
+                    let (change, setting) = workspace.reset_config(
+                        workspace_key,
+                        path,
+                        req.scope,
+                        &req.key,
+                        req.language.as_deref(),
+                    )?;
+                    Ok::<ConfigWriteResponse, AppError>(write_response(change, setting))
+                }
+                _ => {
+                    let change = config.reset(req.scope, &req.key, req.language.as_deref())?;
+                    let setting = contextual_setting(
+                        &config,
+                        workspace.as_deref(),
+                        req.workspace_key.as_deref(),
+                        req.path.as_deref(),
+                        &req.key,
+                        req.language.as_deref(),
+                    )?;
+                    Ok(write_response(change, setting))
+                }
+            }
         }
     });
 
     let list_config = config.clone();
+    let list_workspace = workspace;
     dispatcher.register(LIST, move |req: ConfigListRequest, _ctx| {
         let config = list_config.clone();
+        let workspace = list_workspace.clone();
         async move {
+            let scoped;
+            let config = match req.workspace_key.as_deref() {
+                Some(key) => {
+                    let workspace = workspace.as_ref().ok_or_else(workspace_unavailable)?;
+                    let path = req.path.as_deref().map(std::path::Path::new);
+                    scoped = workspace.config_view(key, path)?;
+                    &scoped
+                }
+                None => config.as_ref(),
+            };
             Ok::<ConfigListResponse, AppError>(ConfigListResponse {
                 settings: config.list(req.prefix.as_deref(), req.language.as_deref()),
                 parse_errors: config.parse_errors(),
                 issues: config.issues(),
-                scopes: scope_info(&config),
+                scopes: scope_info(config),
             })
         }
     });
@@ -129,17 +212,47 @@ pub fn register_commands(dispatcher: &mut IpcDispatcher, config: Arc<ConfigServi
 }
 
 fn write_response(
-    config: &ConfigService,
     change: ConfigChange,
-    key: &str,
-    language: Option<&str>,
+    setting: Option<helix_config::SettingValue>,
 ) -> ConfigWriteResponse {
     ConfigWriteResponse {
         scope: change.scope,
         changed_keys: change.changed_keys,
         requires_restart: change.requires_restart,
-        setting: config.get(key, language),
+        setting,
     }
+}
+
+fn contextual_setting(
+    config: &ConfigService,
+    workspace: Option<&WorkspaceService>,
+    workspace_key: Option<&str>,
+    path: Option<&str>,
+    key: &str,
+    language: Option<&str>,
+) -> Result<Option<helix_config::SettingValue>, AppError> {
+    match workspace_key {
+        Some(workspace_key) => {
+            let workspace = workspace.ok_or_else(workspace_unavailable)?;
+            let scoped = workspace.config_view(workspace_key, path.map(std::path::Path::new))?;
+            Ok(scoped.get(key, language))
+        }
+        None => Ok(config.get(key, language)),
+    }
+}
+
+fn workspace_unavailable() -> AppError {
+    AppError::permanent(
+        "CONFIG_WORKSPACE_UNAVAILABLE",
+        "workspace settings are unavailable before the workspace manager starts",
+    )
+}
+
+fn workspace_key_required() -> AppError {
+    AppError::permanent(
+        "CONFIG_WORKSPACE_REQUIRED",
+        "workspace and folder settings require an open workspace key",
+    )
 }
 
 fn scope_info(config: &ConfigService) -> Vec<ConfigScopeInfo> {
@@ -161,15 +274,23 @@ fn scope_info(config: &ConfigService) -> Vec<ConfigScopeInfo> {
 pub struct ConfigKernelService {
     config: Arc<ConfigService>,
     logger: Arc<Logger>,
-    bridged: bool,
+    bridge_registered: Arc<AtomicBool>,
 }
 
 impl ConfigKernelService {
     pub fn new(config: Arc<ConfigService>, logger: Arc<Logger>) -> Self {
+        Self::with_bridge_state(config, logger, Arc::new(AtomicBool::new(false)))
+    }
+
+    fn with_bridge_state(
+        config: Arc<ConfigService>,
+        logger: Arc<Logger>,
+        bridge_registered: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             config,
             logger,
-            bridged: false,
+            bridge_registered,
         }
     }
 
@@ -225,7 +346,9 @@ impl Service for ConfigKernelService {
         // files a second time.
         ctx.publish(self.config.clone());
 
-        if let Some(hub) = ctx.resolve::<StreamHub>() {
+        if let Some(hub) = ctx.resolve::<StreamHub>()
+            && !self.bridge_registered.swap(true, Ordering::SeqCst)
+        {
             let bridge_hub = hub.clone();
             self.config
                 .add_listener(Arc::new(move |change: &ConfigChange| {
@@ -236,7 +359,6 @@ impl Service for ConfigKernelService {
                     let payload = serde_json::to_value(change).unwrap_or(serde_json::Value::Null);
                     bridge_hub.publish(CHANNEL, payload);
                 }));
-            self.bridged = true;
         }
 
         self.apply_log_settings();
@@ -327,6 +449,19 @@ impl HealthCheck for ConfigKernelService {
             error_count: metrics.parse_errors + metrics.write_errors + metrics.secrets_rejected,
         }
     }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_config = self.config.clone();
+        let health_logger = self.logger.clone();
+        let metrics_config = self.config.clone();
+        let metrics_logger = self.logger.clone();
+        Some(ServiceProbe::new(
+            move || ConfigKernelService::new(health_config.clone(), health_logger.clone()).health(),
+            move || {
+                ConfigKernelService::new(metrics_config.clone(), metrics_logger.clone()).metrics()
+            },
+        ))
+    }
 }
 
 /// Register [`ConfigKernelService`] on a container as a supervised singleton.
@@ -335,15 +470,17 @@ pub fn register(
     config: Arc<ConfigService>,
     logger: Arc<Logger>,
 ) -> Result<(), ServiceError> {
+    let bridge_registered = Arc::new(AtomicBool::new(false));
     container.register(
         SERVICE_NAME,
         &[crate::stream::SERVICE_NAME, crate::log::SERVICE_NAME],
         Lifetime::Singleton,
         move |_ctx| {
-            Ok(
-                Box::new(ConfigKernelService::new(config.clone(), logger.clone()))
-                    as Box<dyn ManagedService>,
-            )
+            Ok(Box::new(ConfigKernelService::with_bridge_state(
+                config.clone(),
+                logger.clone(),
+                bridge_registered.clone(),
+            )) as Box<dyn ManagedService>)
         },
     )
 }
@@ -398,7 +535,7 @@ mod tests {
 
     fn dispatcher(config: Arc<ConfigService>) -> IpcDispatcher {
         let mut dispatcher = IpcDispatcher::new();
-        register_commands(&mut dispatcher, config);
+        register_commands(&mut dispatcher, config, None);
         dispatcher
     }
 
@@ -585,6 +722,121 @@ mod tests {
         let result = response.result.unwrap();
         assert_eq!(result["setting"]["value"], 14);
         assert_eq!(result["setting"]["scope"], "default");
+    }
+
+    #[tokio::test]
+    async fn workspace_and_folder_scopes_round_trip_through_config_ipc() {
+        let dir = TempDir::new("scoped-config-ipc");
+        let api = dir.path().join("api");
+        let web = dir.path().join("web");
+        fs::create_dir_all(&api).unwrap();
+        fs::create_dir_all(&web).unwrap();
+        let logger = logger();
+        let config = service_with(
+            ConfigPaths {
+                user: Some(dir.path().join("user-settings.json")),
+                ..ConfigPaths::default()
+            },
+            logger.clone(),
+        );
+        let fs = crate::fs::build_service(&config, logger.clone());
+        let workspace = Arc::new(helix_workspace::WorkspaceService::with_recent_path(
+            config.clone(),
+            fs,
+            logger,
+            None,
+        ));
+        let opened = workspace.open(&[api.clone(), web.clone()], None).unwrap();
+        let mut dispatcher = IpcDispatcher::new();
+        register_commands(&mut dispatcher, config, Some(workspace));
+
+        let workspace_set = dispatcher
+            .dispatch(IpcRequest::new(
+                SET,
+                "scoped-set-workspace",
+                serde_json::json!({
+                    "scope": "workspace",
+                    "workspace_key": opened.key,
+                    "key": "editor.tabSize",
+                    "value": 2,
+                    "language": "typescript"
+                }),
+            ))
+            .await;
+        assert_eq!(workspace_set.result.unwrap()["setting"]["value"], 2);
+
+        let folder_set = dispatcher
+            .dispatch(IpcRequest::new(
+                SET,
+                "scoped-set-folder",
+                serde_json::json!({
+                    "scope": "folder",
+                    "workspace_key": opened.key,
+                    "path": web.join("src/app.ts"),
+                    "key": "editor.tabSize",
+                    "value": 8
+                }),
+            ))
+            .await;
+        let folder_result = folder_set
+            .result
+            .unwrap_or_else(|| panic!("folder set failed: {:?}", folder_set.error));
+        assert_eq!(folder_result["setting"]["value"], 8);
+
+        let web_typescript = dispatcher
+            .dispatch(IpcRequest::new(
+                GET,
+                "scoped-get-folder",
+                serde_json::json!({
+                    "workspace_key": opened.key,
+                    "path": web.join("src/app.ts"),
+                    "key": "editor.tabSize",
+                    "language": "typescript"
+                }),
+            ))
+            .await;
+        assert_eq!(web_typescript.result.unwrap()["setting"]["value"], 8);
+
+        let reset = dispatcher
+            .dispatch(IpcRequest::new(
+                RESET,
+                "scoped-reset-folder",
+                serde_json::json!({
+                    "scope": "folder",
+                    "workspace_key": opened.key,
+                    "path": web.join("src/app.ts"),
+                    "key": "editor.tabSize"
+                }),
+            ))
+            .await;
+        assert_eq!(reset.result.unwrap()["setting"]["value"], 4);
+
+        let after_reset = dispatcher
+            .dispatch(IpcRequest::new(
+                GET,
+                "scoped-get-after-reset",
+                serde_json::json!({
+                    "workspace_key": opened.key,
+                    "path": web.join("src/app.ts"),
+                    "key": "editor.tabSize",
+                    "language": "typescript"
+                }),
+            ))
+            .await;
+        assert_eq!(after_reset.result.unwrap()["setting"]["value"], 2);
+
+        let api_settings = helix_config::settings_path_in(&api);
+        let web_settings = helix_config::settings_path_in(&web);
+        assert!(
+            fs::read_to_string(api_settings)
+                .unwrap()
+                .contains("typescript")
+        );
+        assert!(
+            !fs::read_to_string(web_settings)
+                .unwrap()
+                .contains("tabSize")
+        );
     }
 
     #[tokio::test]
@@ -813,5 +1065,47 @@ mod tests {
             )
             .unwrap();
         assert_eq!(change.origin, ChangeOrigin::Internal);
+    }
+
+    #[tokio::test]
+    async fn replacement_service_reuses_the_existing_change_bridge() {
+        let dir = TempDir::new("replacement-bridge");
+        let logger = logger();
+        let config = service_with(
+            ConfigPaths {
+                user: Some(dir.path().join("settings.json")),
+                ..ConfigPaths::default()
+            },
+            logger.clone(),
+        );
+        let hub = Arc::new(StreamHub::default());
+        let ctx = ServiceContext::new();
+        ctx.publish(hub.clone());
+        let bridge_registered = Arc::new(AtomicBool::new(false));
+
+        let mut first = ConfigKernelService::with_bridge_state(
+            config.clone(),
+            logger.clone(),
+            bridge_registered.clone(),
+        );
+        first.start(&ctx).await.unwrap();
+        let mut replacement =
+            ConfigKernelService::with_bridge_state(config.clone(), logger, bridge_registered);
+        replacement.start(&ctx).await.unwrap();
+
+        config
+            .set(
+                ConfigScope::User,
+                "editor.fontSize",
+                serde_json::json!(23),
+                None,
+            )
+            .unwrap();
+
+        assert_eq!(
+            hub.next_sequence(CHANNEL),
+            2,
+            "one config change must publish exactly one frame after restart"
+        );
     }
 }

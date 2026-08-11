@@ -28,12 +28,14 @@
 //! put a settings lookup in the hot path of an event storm.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
 use helix_config::ConfigService;
 use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
+    ServiceProbe,
 };
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
@@ -224,11 +226,32 @@ where
 pub struct FsKernelService {
     fs: Arc<FileSystemService>,
     logger: Arc<Logger>,
+    bridge_registered: Arc<AtomicBool>,
+    config_refresh_registered: Arc<AtomicBool>,
 }
 
 impl FsKernelService {
     pub fn new(fs: Arc<FileSystemService>, logger: Arc<Logger>) -> Self {
-        Self { fs, logger }
+        Self::with_registration_state(
+            fs,
+            logger,
+            Arc::new(AtomicBool::new(false)),
+            Arc::new(AtomicBool::new(false)),
+        )
+    }
+
+    fn with_registration_state(
+        fs: Arc<FileSystemService>,
+        logger: Arc<Logger>,
+        bridge_registered: Arc<AtomicBool>,
+        config_refresh_registered: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            fs,
+            logger,
+            bridge_registered,
+            config_refresh_registered,
+        }
     }
 
     pub fn fs(&self) -> &Arc<FileSystemService> {
@@ -258,7 +281,9 @@ impl Service for FsKernelService {
         // directly.
         ctx.publish(self.fs.clone());
 
-        if let Some(hub) = ctx.resolve::<StreamHub>() {
+        if let Some(hub) = ctx.resolve::<StreamHub>()
+            && !self.bridge_registered.swap(true, Ordering::SeqCst)
+        {
             let bridge_hub = hub.clone();
             let listener: ChangeListener = Arc::new(move |changes: &[FileChange]| {
                 // One frame per debounced batch, not per change: a
@@ -271,6 +296,41 @@ impl Service for FsKernelService {
                 bridge_hub.publish(CHANNEL, payload);
             });
             self.fs.add_listener(listener);
+        }
+
+        if let Some(config) = ctx.resolve::<ConfigService>()
+            && !self.config_refresh_registered.swap(true, Ordering::SeqCst)
+        {
+            let refresh_config = config.clone();
+            let refresh_fs = self.fs.clone();
+            let refresh_logger = self.logger.clone();
+            config.add_listener(Arc::new(move |change| {
+                if !change
+                    .changed_keys
+                    .iter()
+                    .any(|key| key.starts_with("files."))
+                {
+                    return;
+                }
+
+                let next = fs_config_from(&refresh_config);
+                match refresh_fs.reconfigure(next) {
+                    Ok(reports) => log_info!(
+                        refresh_logger,
+                        LOG_SOURCE,
+                        "file system configuration applied",
+                        "changed_keys" => change.changed_keys.clone(),
+                        "watched_roots" => reports.len(),
+                    ),
+                    Err(error) => log_warn!(
+                        refresh_logger,
+                        LOG_SOURCE,
+                        "file system configuration could not be applied; keeping the previous settings",
+                        "changed_keys" => change.changed_keys.clone(),
+                        "error" => error.message.clone(),
+                    ),
+                }
+            }));
         }
 
         let config = self.fs.config();
@@ -390,6 +450,17 @@ impl HealthCheck for FsKernelService {
             error_count: metrics.read_errors + metrics.write_errors + metrics.conflicts,
         }
     }
+
+    fn live_probe(&self) -> Option<ServiceProbe> {
+        let health_fs = self.fs.clone();
+        let health_logger = self.logger.clone();
+        let metrics_fs = self.fs.clone();
+        let metrics_logger = self.logger.clone();
+        Some(ServiceProbe::new(
+            move || FsKernelService::new(health_fs.clone(), health_logger.clone()).health(),
+            move || FsKernelService::new(metrics_fs.clone(), metrics_logger.clone()).metrics(),
+        ))
+    }
 }
 
 /// Register [`FsKernelService`] on a container as a supervised singleton.
@@ -398,6 +469,8 @@ pub fn register(
     fs: Arc<FileSystemService>,
     logger: Arc<Logger>,
 ) -> Result<(), ServiceError> {
+    let bridge_registered = Arc::new(AtomicBool::new(false));
+    let config_refresh_registered = Arc::new(AtomicBool::new(false));
     container.register(
         SERVICE_NAME,
         &[
@@ -407,8 +480,12 @@ pub fn register(
         ],
         Lifetime::Singleton,
         move |_ctx| {
-            Ok(Box::new(FsKernelService::new(fs.clone(), logger.clone()))
-                as Box<dyn ManagedService>)
+            Ok(Box::new(FsKernelService::with_registration_state(
+                fs.clone(),
+                logger.clone(),
+                bridge_registered.clone(),
+                config_refresh_registered.clone(),
+            )) as Box<dyn ManagedService>)
         },
     )
 }
@@ -753,6 +830,40 @@ mod tests {
         assert!(!fs_config.watch.exclusions.respect_gitignore);
         assert_eq!(fs_config.default_encoding, Encoding::Utf16Le);
         assert_eq!(fs_config.default_eol, Some(LineEnding::Crlf));
+    }
+
+    #[tokio::test]
+    async fn files_settings_changes_reconfigure_the_running_service() {
+        let dir = TempDir::new("kernel-fs-live-config");
+        let settings_path = dir.path().join("settings.json");
+        let logger = logger();
+        let config = Arc::new(ConfigService::load(
+            ConfigPaths {
+                user: Some(settings_path),
+                ..ConfigPaths::default()
+            },
+            Arc::new(SchemaRegistry::builtin()),
+            logger.clone(),
+        ));
+        let fs = build_service(&config, logger.clone());
+        let ctx = ServiceContext::new();
+        ctx.publish(config.clone());
+        let mut service = FsKernelService::new(fs.clone(), logger);
+        service.start(&ctx).await.unwrap();
+
+        config
+            .set(
+                ConfigScope::User,
+                "files.eol",
+                serde_json::json!("crlf"),
+                None,
+            )
+            .unwrap();
+        let path = dir.path().join("after-config-change.txt");
+        let outcome = fs.write(&path, WriteOptions::new("a\nb\n")).unwrap();
+
+        assert_eq!(outcome.eol, LineEnding::Crlf);
+        assert_eq!(std::fs::read(&path).unwrap(), b"a\r\nb\r\n");
     }
 
     #[test]

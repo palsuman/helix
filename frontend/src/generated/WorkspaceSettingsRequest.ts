@@ -16,4 +16,8 @@ export type WorkspaceSettingsRequest = {
    * the whole tree.
    */
   setting: string | null;
+  /**
+   * Language id whose overrides should participate in resolution.
+   */
+  language: string | null;
 };

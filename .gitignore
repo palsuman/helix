@@ -7,6 +7,7 @@ dist/
 .DS_Store
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
+crates/helix-supervisor/binaries/
 spec/
 .env
 .env.*

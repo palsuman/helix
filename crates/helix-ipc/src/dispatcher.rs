@@ -1,11 +1,8 @@
 //! The typed IPC command dispatcher (REQ-ARCH-003.1-.4).
 //!
 //! The dispatcher is deliberately transport-agnostic: it knows nothing
-//! about Tauri. `helix-kernel` wires it to a `#[tauri::command]`, and the
-//! integration tests and the round-trip benchmark drive the same code path
-//! directly. That keeps the contract testable without a webview and keeps
-//! REQ-REMOTE-001.2 satisfiable (no transport assumptions baked into the
-//! command layer).
+//! about Tauri or the Host-to-kernel socket. The kernel RPC server and the
+//! integration tests drive the same code path directly.
 //!
 //! ## Guarantees
 //!

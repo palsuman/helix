@@ -9,4 +9,6 @@ export type ConfigSetRequest = {
   key: string;
   value: unknown;
   language: string | null;
+  workspace_key: string | null;
+  path: string | null;
 };

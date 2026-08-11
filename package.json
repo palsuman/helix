@@ -4,7 +4,11 @@
   "version": "0.1.0",
   "description": "Repo-root tooling for pre-commit hooks (husky + lint-staged). The application code lives in frontend/ and crates/.",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:dependencies": "node scripts/check-dependency-pinning.mjs",
+    "check:waves": "node scripts/check-wave-plan.mjs",
+    "generate:types": "cargo test --workspace --lib export_bindings && npm --prefix frontend exec -- prettier --write frontend/src/generated",
+    "check:types": "npm run generate:types && git diff --exit-code -- frontend/src/generated"
   },
   "devDependencies": {
     "husky": "9.1.7",
@@ -13,11 +17,13 @@
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [
       "npm --prefix frontend run lint",
-      "npm --prefix frontend exec prettier --write --"
+      "npm --prefix frontend exec -- prettier --write"
     ],
-    "frontend/**/*.{json,css,md}": [
-      "npm --prefix frontend exec prettier --write --"
+    "*.{json,md,yml,yaml}": [
+      "npm --prefix frontend exec -- prettier --write"
     ],
-    "crates/**/*.rs": ["rustfmt --edition 2024"]
+    "{frontend,scripts,specs}/**/*.{json,css,md,mjs,yml,yaml}": [
+      "npm --prefix frontend exec -- prettier --write"
+    ]
   }
 }

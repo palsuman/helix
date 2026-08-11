@@ -199,7 +199,7 @@ pub struct FsMetrics {
 
 /// The file system service.
 pub struct FileSystemService {
-    config: FsConfig,
+    config: RwLock<FsConfig>,
     logger: Arc<Logger>,
     watcher: FsWatcher,
     /// Shared with the watcher's own listener, which is how the watcher fans
@@ -222,7 +222,7 @@ impl FileSystemService {
         });
         let watcher = FsWatcher::new(config.watch.clone(), logger.clone(), fanout);
         Self {
-            config,
+            config: RwLock::new(config),
             logger,
             watcher,
             listeners,
@@ -235,8 +235,17 @@ impl FileSystemService {
         Self::new(FsConfig::default(), logger)
     }
 
-    pub fn config(&self) -> &FsConfig {
-        &self.config
+    pub fn config(&self) -> FsConfig {
+        self.config.read().unwrap().clone()
+    }
+
+    /// Replace operation defaults and rebuild active roots under the new watch
+    /// rules. The old configuration remains active if any root cannot be
+    /// re-registered.
+    pub fn reconfigure(&self, config: FsConfig) -> Result<Vec<RootReport>, AppError> {
+        let reports = self.watcher.reconfigure(config.watch.clone())?;
+        *self.config.write().unwrap() = config;
+        Ok(reports)
     }
 
     /// Register a listener called with every debounced batch of changes. The
@@ -253,6 +262,7 @@ impl FileSystemService {
     pub fn read(&self, path: impl AsRef<Path>) -> Result<FileContent, AppError> {
         let path = path.as_ref();
         let entry = self.stat(path)?;
+        let max_read_bytes = self.config.read().unwrap().max_read_bytes;
         if entry.is_dir {
             self.counters.read_errors.fetch_add(1, Ordering::Relaxed);
             return Err(AppError::permanent(
@@ -260,7 +270,7 @@ impl FileSystemService {
                 format!("{} is a directory, not a file", path.display()),
             ));
         }
-        if entry.size > self.config.max_read_bytes {
+        if entry.size > max_read_bytes {
             self.counters.read_errors.fetch_add(1, Ordering::Relaxed);
             return Err(AppError::permanent(
                 "FS_FILE_TOO_LARGE",
@@ -268,13 +278,13 @@ impl FileSystemService {
                     "{} is {} bytes, above the {} byte read limit",
                     path.display(),
                     entry.size,
-                    self.config.max_read_bytes
+                    max_read_bytes
                 ),
             )
             .with_details(serde_json::json!({
                 "path": path.to_string_lossy(),
                 "size": entry.size,
-                "limit": self.config.max_read_bytes,
+                "limit": max_read_bytes,
             })));
         }
 
@@ -400,10 +410,11 @@ impl FileSystemService {
         // Precedence: what the caller asked for, then what the file already
         // was, then configuration, then the platform. Each step is only
         // consulted because the one before it had nothing to say.
+        let config = self.config.read().unwrap().clone();
         let encoding = options
             .encoding
             .or_else(|| existing.as_ref().map(|(_, existing)| existing.encoding))
-            .unwrap_or(self.config.default_encoding);
+            .unwrap_or(config.default_encoding);
         let line_ending = options
             .eol
             .or_else(|| {
@@ -411,7 +422,7 @@ impl FileSystemService {
                     .as_ref()
                     .map(|(_, existing)| existing.eol.dominant())
             })
-            .or(self.config.default_eol)
+            .or(config.default_eol)
             .unwrap_or_else(LineEnding::platform_default);
 
         let styled = eol::from_lf(&options.text, line_ending);
@@ -499,7 +510,8 @@ impl FileSystemService {
         match self.exclusions_covering(path) {
             Some(exclusions) => Ok(listing::list(path, &exclusions, recursive)),
             None => {
-                let exclusions = Exclusions::build(path, &self.config.watch.exclusions);
+                let config = self.config.read().unwrap().clone();
+                let exclusions = Exclusions::build(path, &config.watch.exclusions);
                 Ok(listing::list(path, &exclusions, recursive))
             }
         }
@@ -779,6 +791,21 @@ mod tests {
         assert_eq!(outcome.encoding, Encoding::Utf8Bom);
         assert_eq!(outcome.eol, LineEnding::Crlf);
         assert_eq!(fs::read(&path).unwrap(), b"\xEF\xBB\xBFa\r\nb\r\n");
+    }
+
+    #[test]
+    fn reconfiguring_changes_the_defaults_for_the_next_new_file() {
+        let dir = TempDir::new("service-reconfigure");
+        let svc = service();
+        let mut config = svc.config();
+        config.default_eol = Some(LineEnding::Crlf);
+        svc.reconfigure(config).unwrap();
+
+        let path = dir.path().join("configured-after-start.txt");
+        let outcome = svc.write(&path, WriteOptions::new("a\nb\n")).unwrap();
+
+        assert_eq!(outcome.eol, LineEnding::Crlf);
+        assert_eq!(fs::read(&path).unwrap(), b"a\r\nb\r\n");
     }
 
     #[test]
