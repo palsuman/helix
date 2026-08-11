@@ -1,0 +1,13 @@
+target/
+node_modules/
+dist/
+*.tsbuildinfo
+.turbo/
+*.log
+.DS_Store
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+spec/
+.env
+.env.*
+!.env.example

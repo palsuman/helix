@@ -1,0 +1,819 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Scaffold project, Rust workspace, and CI": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113814643
+      },
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113842418
+      }
+    ],
+    "1.2 Implement service container with dependency injection": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113814903
+      },
+      {
+        "executionId": "a5693101-14b1-4497-801e-5ebfda0d5066",
+        "chatSessionId": "sess_23ba5686-a3ef-4a3f-94ee-75a7766ba293",
+        "timestamp": 1786337494201
+      },
+      {
+        "executionId": "a5693101-14b1-4497-801e-5ebfda0d5066",
+        "chatSessionId": "sess_23ba5686-a3ef-4a3f-94ee-75a7766ba293",
+        "timestamp": 1786340435771
+      }
+    ],
+    "1.3 Implement Tauri IPC and host-to-kernel command layer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815038
+      },
+      {
+        "executionId": "4ca43100-d029-4522-912a-a47a91601648",
+        "chatSessionId": "sess_d895c026-fb2e-49d7-8d59-5fb2845944fa",
+        "timestamp": 1786340938359
+      },
+      {
+        "executionId": "4ca43100-d029-4522-912a-a47a91601648",
+        "chatSessionId": "sess_d895c026-fb2e-49d7-8d59-5fb2845944fa",
+        "timestamp": 1786342462899
+      }
+    ],
+    "1.4 Implement WebSocket streaming layer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815208
+      },
+      {
+        "executionId": "a80dc213-ad1d-48d2-aa90-5f9c4fb1aa8a",
+        "chatSessionId": "sess_3ac1a381-e88a-4fb4-b377-77dbaf64a466",
+        "timestamp": 1786342552545
+      }
+    ],
+    "1.5 Implement structured logging and the log viewer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815383
+      },
+      {
+        "executionId": "d2070529-bf6b-44b4-94a0-9f16310bf5f7",
+        "chatSessionId": "sess_919f76db-a1a0-4a5e-a9bc-35c6d5b46bcc",
+        "timestamp": 1786351468266
+      },
+      {
+        "executionId": "d2070529-bf6b-44b4-94a0-9f16310bf5f7",
+        "chatSessionId": "sess_919f76db-a1a0-4a5e-a9bc-35c6d5b46bcc",
+        "timestamp": 1786354458513
+      }
+    ],
+    "1.6 Implement configuration service": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815569
+      },
+      {
+        "executionId": "48ae3b06-278f-4dde-ba0f-d09fcd4269bc",
+        "chatSessionId": "sess_38c4a41e-f8cd-44a2-a0bd-e75e78d93732",
+        "timestamp": 1786354563307
+      }
+    ],
+    "1.7 Implement file system service": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815770
+      },
+      {
+        "executionId": "ebdcc3c1-3232-42fd-86b9-b41643edaa2e",
+        "chatSessionId": "sess_15ab6158-71ad-4801-bab3-63e185d3ce49",
+        "timestamp": 1786359648111
+      },
+      {
+        "executionId": "ebdcc3c1-3232-42fd-86b9-b41643edaa2e",
+        "chatSessionId": "sess_15ab6158-71ad-4801-bab3-63e185d3ce49",
+        "timestamp": 1786362805600
+      }
+    ],
+    "1.8 Implement workspace manager": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113815914
+      },
+      {
+        "executionId": "4dc9355b-b019-404a-a3aa-5d613af423f2",
+        "chatSessionId": "sess_979e87e2-fdd9-4d92-b06e-7d93a533764a",
+        "timestamp": 1786362860598
+      },
+      {
+        "executionId": "4dc9355b-b019-404a-a3aa-5d613af423f2",
+        "chatSessionId": "sess_979e87e2-fdd9-4d92-b06e-7d93a533764a",
+        "timestamp": 1786366515321
+      }
+    ],
+    "1.9 Implement monorepo project graph": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816045
+      }
+    ],
+    "1.10 Implement state persistence and write-ahead log": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816185
+      }
+    ],
+    "1.11 Implement Helix Host supervision and crash recovery": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816400
+      }
+    ],
+    "1.12 Implement secret management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816541
+      }
+    ],
+    "1.13 Implement workspace trust": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816681
+      }
+    ],
+    "2.1 Implement React workbench shell": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816816
+      }
+    ],
+    "2.2 Implement layout profiles and zen mode": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113816946
+      }
+    ],
+    "2.3 Implement window management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817096
+      }
+    ],
+    "2.4 Implement theming system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817264
+      }
+    ],
+    "2.5 Implement icon system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817439
+      }
+    ],
+    "2.6 Implement notification system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817582
+      }
+    ],
+    "2.7 Implement command registry and command palette": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817723
+      }
+    ],
+    "2.8 Implement keybinding system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113817908
+      }
+    ],
+    "2.9 Establish localization infrastructure": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818037
+      }
+    ],
+    "3.1 Set up Rust integration test framework": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818179
+      }
+    ],
+    "3.2 Set up frontend component test framework": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818313
+      }
+    ],
+    "3.3 Set up E2E test framework": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818452
+      }
+    ],
+    "3.4 Set up performance benchmark suite": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818603
+      }
+    ],
+    "3.5 Set up IPC contract tests": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818751
+      }
+    ],
+    "3.6 Set up accessibility test harness": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113818903
+      }
+    ],
+    "4.1 Integrate Monaco Editor": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819048
+      }
+    ],
+    "4.2 Implement editor tab management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819192
+      }
+    ],
+    "4.3 Implement file lifecycle and buffer management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819339
+      }
+    ],
+    "4.4 Implement single-file find and replace": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819488
+      }
+    ],
+    "4.5 Implement search and index service": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819632
+      }
+    ],
+    "4.6 Implement workspace find and replace": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819779
+      }
+    ],
+    "4.7 Implement quick open": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113819923
+      }
+    ],
+    "4.8 Implement file explorer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820056
+      }
+    ],
+    "4.9 Implement diff editor component": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820201
+      }
+    ],
+    "4.10 Implement formatting provider service": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820349
+      }
+    ],
+    "4.11 Implement snippet system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820541
+      }
+    ],
+    "5.1 Implement LSP host manager": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820668
+      }
+    ],
+    "5.2 Implement LSP completions, hover, and signature help": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820804
+      }
+    ],
+    "5.3 Implement LSP navigation features": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113820944
+      }
+    ],
+    "5.4 Implement LSP editing features": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821087
+      }
+    ],
+    "5.5 Implement LSP decoration features": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821223
+      }
+    ],
+    "5.6 Implement LSP dynamic registration, pull diagnostics, and progress": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821363
+      }
+    ],
+    "5.7 Implement Tree-sitter integration": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821506
+      }
+    ],
+    "5.8 Implement diagnostics UI": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821634
+      }
+    ],
+    "5.9 Implement breadcrumbs, outline, and sticky scroll": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821766
+      }
+    ],
+    "6.1 Implement terminal and PTY manager": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113821905
+      }
+    ],
+    "6.2 Implement task system": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822032
+      }
+    ],
+    "7.1 Implement Git service core": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822168
+      }
+    ],
+    "7.2 Implement source control UI": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822319
+      }
+    ],
+    "7.3 Implement Git decorations and Tier 1 conflict fallback": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822470
+      }
+    ],
+    "8.1 Implement LLM provider architecture": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822616
+      }
+    ],
+    "8.2 Implement model routing and budget": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113822762
+      }
+    ],
+    "8.3 Implement inline AI completion": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113823011
+      }
+    ],
+    "8.4 Implement inline AI edit": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113823431
+      }
+    ],
+    "8.5 Implement AI chat panel": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113823837
+      }
+    ],
+    "8.6 Implement chat context attachments": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113824321
+      }
+    ],
+    "8.7 Implement conversation management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113824523
+      }
+    ],
+    "9.1 Implement settings UI": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113824729
+      }
+    ],
+    "9.2 Implement accessibility foundations": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113824928
+      }
+    ],
+    "9.3 Implement health monitoring dashboard": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113825120
+      }
+    ],
+    "9.4 Implement frontend resilience": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113825346
+      }
+    ],
+    "9.5 Ship bundled first-party language support": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113826117
+      }
+    ],
+    "9.6 Verify Tier-1 offline capability and build the offline harness": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113826529
+      }
+    ],
+    "9.7 Pass the MVP performance and reliability gate": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113826695
+      }
+    ],
+    "10.1 Implement DAP host manager": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113826896
+      }
+    ],
+    "10.2 Implement debug UI for breakpoints and control": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113827096
+      }
+    ],
+    "10.3 Implement debug UI for inspection": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113827271
+      }
+    ],
+    "10.4 Implement merge editor": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113827481
+      }
+    ],
+    "10.5 Implement test explorer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113827938
+      }
+    ],
+    "11.1 Implement Git remote operations": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113828501
+      }
+    ],
+    "11.2 Implement advanced Git workflows": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113828692
+      }
+    ],
+    "11.3 Implement Git log and blame": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113828829
+      }
+    ],
+    "12.1 Implement AI-enhanced workflows": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113828968
+      }
+    ],
+    "12.2 Implement MCP support": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829136
+      }
+    ],
+    "12.3 Implement local model management": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829295
+      }
+    ],
+    "13.1 Implement crash reporting": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829434
+      }
+    ],
+    "13.2 Implement performance telemetry and profiling": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829563
+      }
+    ],
+    "14.1 Implement welcome and onboarding": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829700
+      }
+    ],
+    "14.2 Ship localization catalogs and RTL support": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113829834
+      }
+    ],
+    "14.3 Implement command-line interface": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113830003
+      }
+    ],
+    "14.4 Implement web preview panel": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113830314
+      }
+    ],
+    "15.1 Implement cross-platform packaging": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113830673
+      }
+    ],
+    "15.2 Implement auto-updater": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113831181
+      }
+    ],
+    "15.3 Implement supply chain security": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113831620
+      }
+    ],
+    "16.1 Implement agent workspace isolation": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113831893
+      }
+    ],
+    "16.2 Implement agent task planner": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832068
+      }
+    ],
+    "16.3 Implement agent execution engine": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832213
+      }
+    ],
+    "16.4 Implement agent trust and approval model": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832345
+      }
+    ],
+    "16.5 Implement agent state and recovery": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832504
+      }
+    ],
+    "16.6 Implement agent review and merge": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832656
+      }
+    ],
+    "16.7 Implement agent security controls": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832791
+      }
+    ],
+    "16.8 Extract the VCS abstraction layer": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113832922
+      }
+    ],
+    "17.1 Implement WASM plugin runtime": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113833062
+      }
+    ],
+    "17.2 Implement process plugin host": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113833197
+      }
+    ],
+    "17.3 Implement the plugin API surface": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113833336
+      }
+    ],
+    "17.4 Implement plugin manifest and lifecycle": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113833910
+      }
+    ],
+    "17.5 Implement plugin sandbox enforcement": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113834421
+      }
+    ],
+    "17.6 Implement plugin marketplace client": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113834625
+      }
+    ],
+    "17.7 Ship the plugin development kit": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113834767
+      }
+    ],
+    "17.8 Migrate bundled plugins onto the public API": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113834944
+      }
+    ],
+    "18.1 Maintain the E2E critical path suite": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113835111
+      }
+    ],
+    "18.2 Maintain performance regression gates": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113835283
+      }
+    ],
+    "18.3 Maintain fuzz testing": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113835453
+      }
+    ],
+    "18.4 Maintain memory leak detection": [
+      {
+        "executionId": "d3238e8f-64ed-4e8e-a433-e7c77995c231",
+        "chatSessionId": "sess_f848cdd5-66e6-4d4c-85fe-f94d32cfab30",
+        "timestamp": 1786113835617
+      }
+    ]
+  }
+}

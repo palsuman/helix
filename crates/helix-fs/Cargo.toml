@@ -1,0 +1,36 @@
+[package]
+name = "helix-fs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+helix-core = { path = "../helix-core" }
+helix-log = { path = "../helix-log" }
+# Pinned exactly, per the design document's dependency policy. `notify` is
+# recorded there as the 6.x line, so the pin tracks that line rather than the
+# newest release.
+notify = "=6.1.1"
+# `.gitignore` semantics are not a glob match, they are a precedence-ordered
+# ruleset with negation and directory-relative anchoring. Reimplementing them
+# would be reimplementing git's most bug-reported feature.
+ignore = "=0.4.33"
+globset = "=0.4.20"
+xxhash-rust = { version = "=0.8.18", features = ["xxh3"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+ts-rs = "12.0.1"
+
+[features]
+# Exposes the scratch-directory helper to the integration tests next door, so
+# they use the same type as the unit tests rather than a copy of it.
+testutil = []
+
+[dev-dependencies]
+helix-fs = { path = ".", features = ["testutil"] }
+
+# No other dev-dependencies: the service is synchronous and its watcher runs on a
+# plain OS thread, so the tests need no async runtime. The kernel-side wiring
+# that drives it under the container is tested in `helix-kernel`.

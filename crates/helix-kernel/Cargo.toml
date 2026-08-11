@@ -1,0 +1,40 @@
+[package]
+name = "helix-kernel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "helix_kernel_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "helix-kernel"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+async-trait = "=0.1.92"
+helix-config = { path = "../helix-config" }
+helix-core = { path = "../helix-core" }
+helix-fs = { path = "../helix-fs" }
+helix-ipc = { path = "../helix-ipc" }
+helix-log = { path = "../helix-log" }
+helix-stream = { path = "../helix-stream" }
+helix-workspace = { path = "../helix-workspace" }
+tauri = { version = "2.11.5", features = [] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+[dev-dependencies]
+# The scratch-directory helper, so the file system tests use the same type as
+# the ones inside `helix-fs` rather than a third copy of it.
+helix-fs = { path = "../helix-fs", features = ["testutil"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

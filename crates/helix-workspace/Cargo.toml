@@ -1,0 +1,29 @@
+[package]
+name = "helix-workspace"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+helix-config = { path = "../helix-config" }
+helix-core = { path = "../helix-core" }
+helix-fs = { path = "../helix-fs" }
+helix-log = { path = "../helix-log" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+ts-rs = "12.0.1"
+# The same hash the file system service uses for content, reused here for the
+# workspace key. One hash function in the workspace means a key computed in two
+# places cannot disagree.
+xxhash-rust = { version = "=0.8.18", features = ["xxh3"] }
+
+[dev-dependencies]
+# The scratch-directory helper, so these tests use the same type as the ones in
+# `helix-fs` rather than a third copy of it.
+helix-fs = { path = "../helix-fs", features = ["testutil"] }
+
+# No async dev-dependency: the manager is synchronous. The periodic availability
+# retry that drives it lives in `helix-kernel` and is tested there against a real
+# container.
