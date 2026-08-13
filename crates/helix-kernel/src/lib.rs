@@ -10,8 +10,10 @@ pub mod fs;
 pub mod ipc;
 pub mod log;
 pub mod project_graph;
+pub mod secrets;
 pub mod state;
 pub mod stream;
+pub mod trust;
 pub mod workspace;
 
 use std::sync::Arc;
@@ -38,6 +40,8 @@ pub struct Kernel {
     pub workspace: Arc<WorkspaceService>,
     pub project_graph: Arc<ProjectGraphService>,
     pub state: Arc<StatePersistence>,
+    pub secrets: Arc<helix_secrets::SecretService>,
+    pub trust: Arc<helix_trust::TrustService>,
 }
 
 /// Build and start the kernel's service container, returning it alongside
@@ -89,10 +93,24 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     // flush interval is the configured editor recovery-point objective.
     let state = state::build_service(&config);
 
+    // Secrets follow logging so stored values can register with the redactor.
+    let secrets = secrets::build_service(logger.clone());
+
+    // Trust is mandatory. The only global bypass is the warning-gated
+    // `trust everything` decision held in the trust store.
+    let trust = trust::build_service(logger.clone());
+
     let mut dispatcher = ipc::build_dispatcher(KERNEL_VERSION);
     stream::register_commands(&mut dispatcher, &streaming);
     log::register_commands(&mut dispatcher, logger.clone());
-    config::register_commands(&mut dispatcher, config.clone(), Some(workspace.clone()));
+    secrets::register_commands(&mut dispatcher, secrets.clone());
+    trust::register_commands(&mut dispatcher, trust.clone());
+    config::register_commands(
+        &mut dispatcher,
+        config.clone(),
+        Some(workspace.clone()),
+        Some(trust.clone()),
+    );
     fs::register_commands(&mut dispatcher, fs.clone());
     workspace::register_commands(&mut dispatcher, workspace.clone());
     project_graph::register_commands(
@@ -100,6 +118,7 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         project_graph.clone(),
         workspace.clone(),
         project_graph_runtime.scheduler.clone(),
+        trust.clone(),
     );
     let dispatcher = Arc::new(dispatcher);
 
@@ -130,6 +149,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         logger.clone(),
         config.clone(),
     )?;
+    secrets::register(&mut container, secrets.clone(), logger.clone())?;
+    trust::register(&mut container, trust.clone(), logger.clone())?;
     container.start_all().await?;
 
     Ok(Kernel {
@@ -142,6 +163,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         workspace,
         project_graph,
         state,
+        secrets,
+        trust,
     })
 }
 

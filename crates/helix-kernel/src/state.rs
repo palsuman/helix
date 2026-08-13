@@ -42,6 +42,7 @@ struct StateKernelService {
     logger: Arc<Logger>,
     listener_registered: Arc<AtomicBool>,
     retention: Duration,
+    skip_restore: bool,
 }
 
 #[async_trait]
@@ -131,7 +132,12 @@ impl Service for StateKernelService {
 
 impl StateKernelService {
     fn open(&self, snapshot: &helix_workspace::WorkspaceSnapshot) {
-        match self.state.open(snapshot) {
+        let result = if self.skip_restore {
+            self.state.open_without_restore(snapshot)
+        } else {
+            self.state.open(snapshot)
+        };
+        match result {
             Ok(report) => {
                 log_info!(self.logger, LOG_SOURCE, "workspace state recovered", "workspace_key" => snapshot.key.clone(), "buffers" => report.session.buffers.len(), "terminals" => report.session.terminals.len(), "agents" => report.session.agents.len(), "discarded_entries" => report.discarded_entries, "snapshot_corrupt" => report.snapshot_corrupt);
             }
@@ -234,6 +240,7 @@ pub fn register(
         .unwrap_or(30)
         .max(1) as u64;
     let retention = Duration::from_secs(retention_days * 24 * 60 * 60);
+    let skip_restore = std::env::var_os(helix_ipc::KERNEL_SKIP_SESSION_RESTORE_ENV).is_some();
     container.register(
         SERVICE_NAME,
         &[
@@ -249,6 +256,7 @@ pub fn register(
                 logger: logger.clone(),
                 listener_registered: listener_registered.clone(),
                 retention,
+                skip_restore,
             }) as Box<dyn ManagedService>)
         },
     )

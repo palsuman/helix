@@ -51,6 +51,61 @@ impl StatePersistence {
         self.open_at(workspace.key.clone(), roots, root)
     }
 
+    /// Attach a workspace while deliberately suppressing session replay.
+    pub fn open_without_restore(
+        &self,
+        workspace: &WorkspaceSnapshot,
+    ) -> Result<RecoveryReport, StateError> {
+        let roots: Vec<PathBuf> = workspace
+            .roots
+            .iter()
+            .map(|root| PathBuf::from(&root.path))
+            .collect();
+        let root = workspace_state_directory(&workspace.key).ok_or_else(|| {
+            StateError::Invalid("the operating-system state directory could not be resolved".into())
+        })?;
+        self.open_at_without_restore(workspace.key.clone(), roots, root)
+    }
+
+    pub fn open_at_without_restore(
+        &self,
+        key: String,
+        roots: Vec<PathBuf>,
+        state_dir: PathBuf,
+    ) -> Result<RecoveryReport, StateError> {
+        let store = Arc::new(StateStore::new(
+            state_dir,
+            key.clone(),
+            roots.clone(),
+            self.config.clone(),
+        ));
+        let timestamp = now_ms();
+        let mut session = SessionSnapshot {
+            timestamp_ms: timestamp,
+            workspace_key: key.clone(),
+            roots: roots
+                .iter()
+                .map(|root| root.to_string_lossy().into_owned())
+                .collect(),
+            ..SessionSnapshot::default()
+        };
+        store.write_snapshot(&session, timestamp)?;
+        session.timestamp_ms = timestamp;
+        let recovery = RecoveryReport {
+            session: session.clone(),
+            ..RecoveryReport::default()
+        };
+        self.workspaces.write().unwrap().insert(
+            key,
+            WorkspaceState {
+                store,
+                session,
+                recovery: recovery.clone(),
+            },
+        );
+        Ok(recovery)
+    }
+
     /// Explicit-root variant used by crash tests and embedders.
     pub fn open_at(
         &self,
@@ -222,5 +277,39 @@ mod tests {
         let second = StatePersistence::new(StateStoreConfig::default());
         let recovered = second.open_at("key".into(), vec![root], state_dir).unwrap();
         assert_eq!(recovered.session.buffers[0].content, "unsaved");
+    }
+
+    #[test]
+    fn start_without_restore_checkpoints_an_empty_session_over_old_wal() {
+        let dir = TempDir::new("state-manager-no-restore");
+        let state_dir = dir.path().join("state/key");
+        let old = StateStore::new(&state_dir, "key", vec![], StateStoreConfig::default());
+        old.queue_buffer(
+            BufferState {
+                id: "old".into(),
+                content: "do not restore".into(),
+                language: "text".into(),
+                target: None,
+                dirty: true,
+                cursor_line: 0,
+                cursor_column: 0,
+            },
+            0,
+        );
+        old.flush_all(1).unwrap();
+
+        let manager = StatePersistence::new(StateStoreConfig::default());
+        let recovery = manager
+            .open_at_without_restore("key".into(), vec![], state_dir.clone())
+            .unwrap();
+        assert!(recovery.session.buffers.is_empty());
+        assert!(
+            StateStore::new(state_dir, "key", vec![], StateStoreConfig::default())
+                .recover()
+                .unwrap()
+                .session
+                .buffers
+                .is_empty()
+        );
     }
 }

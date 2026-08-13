@@ -73,12 +73,15 @@ pub fn register_commands(
     dispatcher: &mut IpcDispatcher,
     config: Arc<ConfigService>,
     workspace: Option<Arc<WorkspaceService>>,
+    trust: Option<Arc<helix_trust::TrustService>>,
 ) {
     let get_config = config.clone();
     let get_workspace = workspace.clone();
+    let get_trust = trust.clone();
     dispatcher.register(GET, move |req: ConfigGetRequest, _ctx| {
         let config = get_config.clone();
         let workspace = get_workspace.clone();
+        let trust = get_trust.clone();
         async move {
             let scoped;
             let config = match req.workspace_key.as_deref() {
@@ -90,18 +93,46 @@ pub fn register_commands(
                 }
                 None => config.as_ref(),
             };
+            let setting = config.get(&req.key, req.language.as_deref());
             Ok::<ConfigGetResponse, AppError>(ConfigGetResponse {
-                setting: config.get(&req.key, req.language.as_deref()),
+                setting: filter_executable_setting(
+                    setting,
+                    trust.as_deref(),
+                    workspace.as_deref(),
+                    req.workspace_key.as_deref(),
+                    req.path.as_deref().map(std::path::Path::new),
+                ),
             })
         }
     });
 
     let set_config = config.clone();
     let set_workspace = workspace.clone();
+    let set_trust = trust.clone();
     dispatcher.register(SET, move |req: ConfigSetRequest, _ctx| {
         let config = set_config.clone();
         let workspace = set_workspace.clone();
+        let trust = set_trust.clone();
         async move {
+            if let (Some(trust), ConfigScope::Workspace | ConfigScope::Folder) =
+                (trust.as_ref(), req.scope)
+                && let Some(workspace) = workspace.as_ref()
+            {
+                let workspace_key = req
+                    .workspace_key
+                    .as_deref()
+                    .ok_or_else(workspace_key_required)?;
+                if let Some(root) = trust_root_for_setting(
+                    workspace,
+                    workspace_key,
+                    req.path.as_deref().map(std::path::Path::new),
+                    req.scope,
+                ) {
+                    trust
+                        .require_setting(&root, &req.key)
+                        .map_err(crate::trust::map_trust_error)?;
+                }
+            }
             match req.scope {
                 ConfigScope::Workspace | ConfigScope::Folder => {
                     let workspace = workspace.as_ref().ok_or_else(workspace_unavailable)?;
@@ -178,9 +209,11 @@ pub fn register_commands(
 
     let list_config = config.clone();
     let list_workspace = workspace;
+    let list_trust = trust;
     dispatcher.register(LIST, move |req: ConfigListRequest, _ctx| {
         let config = list_config.clone();
         let workspace = list_workspace.clone();
+        let trust = list_trust.clone();
         async move {
             let scoped;
             let config = match req.workspace_key.as_deref() {
@@ -192,8 +225,21 @@ pub fn register_commands(
                 }
                 None => config.as_ref(),
             };
+            let settings = config
+                .list(req.prefix.as_deref(), req.language.as_deref())
+                .into_iter()
+                .filter_map(|setting| {
+                    filter_executable_setting(
+                        Some(setting),
+                        trust.as_deref(),
+                        workspace.as_deref(),
+                        req.workspace_key.as_deref(),
+                        req.path.as_deref().map(std::path::Path::new),
+                    )
+                })
+                .collect();
             Ok::<ConfigListResponse, AppError>(ConfigListResponse {
-                settings: config.list(req.prefix.as_deref(), req.language.as_deref()),
+                settings,
                 parse_errors: config.parse_errors(),
                 issues: config.issues(),
                 scopes: scope_info(config),
@@ -209,6 +255,30 @@ pub fn register_commands(
             })
         }
     });
+}
+
+fn filter_executable_setting(
+    setting: Option<helix_config::SettingValue>,
+    trust: Option<&helix_trust::TrustService>,
+    workspace: Option<&WorkspaceService>,
+    workspace_key: Option<&str>,
+    folder_path: Option<&std::path::Path>,
+) -> Option<helix_config::SettingValue> {
+    let setting = setting?;
+    if !matches!(setting.scope, ConfigScope::Workspace | ConfigScope::Folder)
+        || !helix_trust::TrustService::setting_key_requires_trust(&setting.key)
+    {
+        return Some(setting);
+    }
+    let (Some(trust), Some(workspace), Some(workspace_key)) = (trust, workspace, workspace_key)
+    else {
+        // No launch-capable workspace setting is exposed without the trust
+        // service and root context needed to authorize it.
+        return None;
+    };
+    let root = trust_root_for_setting(workspace, workspace_key, folder_path, setting.scope)?;
+    trust.require_setting(&root, &setting.key).ok()?;
+    Some(setting)
 }
 
 fn write_response(
@@ -253,6 +323,22 @@ fn workspace_key_required() -> AppError {
         "CONFIG_WORKSPACE_REQUIRED",
         "workspace and folder settings require an open workspace key",
     )
+}
+
+fn trust_root_for_setting(
+    workspace: &WorkspaceService,
+    workspace_key: &str,
+    folder_path: Option<&std::path::Path>,
+    scope: ConfigScope,
+) -> Option<std::path::PathBuf> {
+    let snapshot = workspace.snapshot(workspace_key)?;
+    match scope {
+        ConfigScope::Folder => folder_path.map(std::path::Path::to_path_buf),
+        ConfigScope::Workspace => snapshot
+            .primary_root()
+            .map(|root| std::path::PathBuf::from(&root.path)),
+        _ => None,
+    }
 }
 
 fn scope_info(config: &ConfigService) -> Vec<ConfigScopeInfo> {
@@ -535,7 +621,7 @@ mod tests {
 
     fn dispatcher(config: Arc<ConfigService>) -> IpcDispatcher {
         let mut dispatcher = IpcDispatcher::new();
-        register_commands(&mut dispatcher, config, None);
+        register_commands(&mut dispatcher, config, None, None);
         dispatcher
     }
 
@@ -748,7 +834,7 @@ mod tests {
         ));
         let opened = workspace.open(&[api.clone(), web.clone()], None).unwrap();
         let mut dispatcher = IpcDispatcher::new();
-        register_commands(&mut dispatcher, config, Some(workspace));
+        register_commands(&mut dispatcher, config, Some(workspace), None);
 
         let workspace_set = dispatcher
             .dispatch(IpcRequest::new(
@@ -836,6 +922,64 @@ mod tests {
             !fs::read_to_string(web_settings)
                 .unwrap()
                 .contains("tabSize")
+        );
+    }
+
+    #[tokio::test]
+    async fn restricted_workspace_executable_settings_are_not_exposed() {
+        let dir = TempDir::new("restricted-executable-setting");
+        let root = dir.path().join("repo");
+        fs::create_dir_all(root.join(".helix")).unwrap();
+        fs::write(
+            helix_config::settings_path_in(&root),
+            r#"{ "plugin.tool.command": "/workspace/untrusted-tool" }"#,
+        )
+        .unwrap();
+        let logger = logger();
+        let config = service_with(ConfigPaths::default(), logger.clone());
+        let fs_service = crate::fs::build_service(&config, logger.clone());
+        let workspace = Arc::new(helix_workspace::WorkspaceService::with_recent_path(
+            config.clone(),
+            fs_service,
+            logger,
+            None,
+        ));
+        let opened = workspace.open(std::slice::from_ref(&root), None).unwrap();
+        let trust = Arc::new(helix_trust::TrustService::in_memory());
+        let mut dispatcher = IpcDispatcher::new();
+        register_commands(
+            &mut dispatcher,
+            config,
+            Some(workspace),
+            Some(trust.clone()),
+        );
+
+        let restricted = dispatcher
+            .dispatch(IpcRequest::new(
+                GET,
+                "restricted-setting",
+                serde_json::json!({
+                    "workspace_key": opened.key,
+                    "key": "plugin.tool.command"
+                }),
+            ))
+            .await;
+        assert!(restricted.result.unwrap()["setting"].is_null());
+
+        trust.trust(&root, false).unwrap();
+        let trusted = dispatcher
+            .dispatch(IpcRequest::new(
+                GET,
+                "trusted-setting",
+                serde_json::json!({
+                    "workspace_key": opened.key,
+                    "key": "plugin.tool.command"
+                }),
+            ))
+            .await;
+        assert_eq!(
+            trusted.result.unwrap()["setting"]["value"],
+            "/workspace/untrusted-tool"
         );
     }
 

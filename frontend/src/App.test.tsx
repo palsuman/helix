@@ -57,6 +57,40 @@ function fakeKernelClient() {
         error: null,
       } as T;
     }
+    if (request.command === "trust.status") {
+      const payload = request.payload as { paths?: string[] };
+      const paths = payload.paths ?? [];
+      return {
+        correlation_id: request.correlation_id,
+        result: {
+          enabled: true,
+          trust_everything: false,
+          store_healthy: true,
+          workspace_mode: "trusted",
+          pending_prompts: [],
+          roots: paths.map((path) => ({
+            path,
+            decision: "trusted",
+            inherited_from: null,
+          })),
+        },
+        error: null,
+      } as T;
+    }
+    if (request.command === "trust.list") {
+      return {
+        correlation_id: request.correlation_id,
+        result: { entries: [] },
+        error: null,
+      } as T;
+    }
+    if (request.command === "workspace.list") {
+      return {
+        correlation_id: request.correlation_id,
+        result: { workspaces: [] },
+        error: null,
+      } as T;
+    }
 
     // ipc.sleep: answer only when cancelled, as the kernel does.
     return new Promise<T>((resolve) => {
@@ -225,7 +259,7 @@ describe("App", () => {
     // A jump the kernel did not announce is still a loss the user must see.
     await streaming.emitTick(9, 9);
 
-    const status = await screen.findByRole("status");
+    const status = await screen.findByText(/Output truncated/);
     expect(status).toHaveTextContent("Output truncated: 7 message(s)");
     expect(status).toHaveTextContent("demo:counter");
   });

@@ -177,7 +177,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: edit without saving, force-kill the kernel, restart, and find the unsaved content restored with `git status` clean in the workspace; corrupt a WAL entry and recover from the last valid one; do the same in a read-only checkout_
     - _Requirements: REQ-NFR-002, REQ-ED-006_
 
-  - [ ] 1.11 Implement Helix Host supervision and crash recovery
+  - [x] 1.11 Implement Helix Host supervision and crash recovery
     - Minimal Helix Host/Tauri Core process that owns windows, Tauri capabilities, command forwarding, and kernel supervision: no IDE business logic, no plugins, no application network requests
     - Detect abnormal exit by non-zero code, signal, or missed heartbeat
     - Restart the kernel within 2s of abnormal exit
@@ -192,7 +192,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: kill the kernel while typing; it restarts within 2s and the buffer returns. Kill it 6 times in a minute and the recovery UI appears instead of another restart_
     - _Requirements: REQ-ARCH-005, REQ-NFR-002_
 
-  - [ ] 1.12 Implement secret management
+  - [x] 1.12 Implement secret management
     - OS keychain integration: Windows Credential Manager, macOS Keychain, Linux Secret Service via libsecret
     - Service API: store, get, delete, list
     - Namespaced access so a plugin cannot read another's secrets
@@ -206,7 +206,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: store an API key, confirm it lands in the OS keychain, and grep every log file to confirm it never appears_
     - _Requirements: REQ-SEC-002_
 
-  - [ ] 1.13 Implement workspace trust
+  - [x] 1.13 Implement workspace trust
     - First-open prompt per folder path with Trust or Restricted, decision remembered
     - Parent-folder trust granting inherited trust to subfolders
     - Restricted mode blocks: task execution and auto-detection, language server launch, debug adapter launch, workspace-recommended plugin activation, MCP server launch, workspace-defined formatters, agent execution, and settings specifying executable paths

@@ -607,15 +607,6 @@ impl SchemaRegistry {
             .requires_restart()
             .user_only(),
             SettingSchema::new(
-                "security.workspaceTrust.enabled",
-                SettingKind::Boolean,
-                json!(true),
-                "Security",
-                "Require a trust decision before running workspace-supplied code.",
-            )
-            .requires_restart()
-            .user_only(),
-            SettingSchema::new(
                 "update.channel",
                 SettingKind::String,
                 json!("stable"),

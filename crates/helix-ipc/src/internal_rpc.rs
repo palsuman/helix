@@ -18,6 +18,9 @@ use crate::{CancelRequest, CancelResponse, IpcDispatcher, IpcRequest, IpcRespons
 pub const KERNEL_LAUNCH_TOKEN_ENV: &str = "HELIX_KERNEL_LAUNCH_TOKEN";
 pub const KERNEL_EPOCH_ENV: &str = "HELIX_KERNEL_EPOCH";
 pub const KERNEL_READY_PREFIX: &str = "HELIX_READY ";
+pub const KERNEL_CRASH_HANDOFF_ENV: &str = "HELIX_KERNEL_CRASH_HANDOFF";
+pub const KERNEL_SAFE_MODE_ENV: &str = "HELIX_SAFE_MODE";
+pub const KERNEL_SKIP_SESSION_RESTORE_ENV: &str = "HELIX_SKIP_SESSION_RESTORE";
 pub const MAX_INTERNAL_RPC_BYTES: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,6 +42,10 @@ pub struct AuthenticatedRpcRequest {
 pub enum InternalRpcRequest {
     Dispatch(IpcRequest<serde_json::Value>),
     Cancel(CancelRequest),
+    /// Transport liveness probe. This deliberately invokes no domain handler.
+    Health,
+    /// Clean-quit handshake. The acknowledgement is written before shutdown begins.
+    Shutdown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -46,6 +53,8 @@ pub enum InternalRpcRequest {
 pub enum InternalRpcResponse {
     Dispatch(IpcResponse<serde_json::Value>),
     Cancel(CancelResponse),
+    Health { epoch: String },
+    ShutdownAcknowledged,
     ProtocolError { message: String },
 }
 
@@ -104,7 +113,20 @@ pub async fn serve_internal_rpc_request(
     epoch: &str,
     dispatcher: Arc<IpcDispatcher>,
 ) -> io::Result<()> {
+    serve_internal_rpc_request_with_shutdown(stream, launch_token, epoch, dispatcher, None).await
+}
+
+/// Controlled variant used by the kernel executable. Tests and embedders that
+/// do not own process lifecycle keep using [`serve_internal_rpc_request`].
+pub async fn serve_internal_rpc_request_with_shutdown(
+    stream: TcpStream,
+    launch_token: &str,
+    epoch: &str,
+    dispatcher: Arc<IpcDispatcher>,
+    shutdown: Option<tokio::sync::mpsc::Sender<()>>,
+) -> io::Result<()> {
     let mut reader = BufReader::new(stream);
+    let mut request_shutdown = false;
     let response = match read_frame(&mut reader).await {
         Ok(frame) => match serde_json::from_slice::<AuthenticatedRpcRequest>(&frame) {
             Ok(frame) if frame.launch_token == launch_token && frame.epoch == epoch => {
@@ -119,6 +141,16 @@ pub async fn serve_internal_rpc_request(
                             cancelled,
                         })
                     }
+                    InternalRpcRequest::Health => InternalRpcResponse::Health {
+                        epoch: epoch.to_string(),
+                    },
+                    InternalRpcRequest::Shutdown if shutdown.is_some() => {
+                        request_shutdown = true;
+                        InternalRpcResponse::ShutdownAcknowledged
+                    }
+                    InternalRpcRequest::Shutdown => InternalRpcResponse::ProtocolError {
+                        message: "kernel shutdown is not available in this server".into(),
+                    },
                 }
             }
             Ok(_) => InternalRpcResponse::ProtocolError {
@@ -135,7 +167,11 @@ pub async fn serve_internal_rpc_request(
 
     let mut stream = reader.into_inner();
     write_frame(&mut stream, &response).await?;
-    stream.shutdown().await
+    stream.shutdown().await?;
+    if request_shutdown && let Some(shutdown) = shutdown {
+        let _ = shutdown.send(()).await;
+    }
+    Ok(())
 }
 
 async fn read_frame<R: AsyncBufRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {

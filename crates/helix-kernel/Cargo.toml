@@ -22,7 +22,9 @@ helix-fs = { path = "../helix-fs" }
 helix-ipc = { path = "../helix-ipc" }
 helix-log = { path = "../helix-log" }
 helix-stream = { path = "../helix-stream" }
+helix-secrets = { path = "../helix-secrets" }
 helix-state = { path = "../helix-state" }
+helix-trust = { path = "../helix-trust" }
 helix-workspace = { path = "../helix-workspace" }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.145"

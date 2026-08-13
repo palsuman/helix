@@ -22,6 +22,7 @@ use helix_fs::FileSystemService;
 use helix_ipc::{CommandContext, IpcDispatcher};
 use helix_log::{Logger, log_info, log_warn};
 use helix_stream::StreamHub;
+use helix_trust::{TrustCapability, TrustService};
 use helix_workspace::commands::{
     AFFECTED_PROJECTS, AffectedProjectsRequest, AffectedProjectsResponse, AffectedProjectsSource,
     PROJECT_GRAPH, PROJECT_GRAPH_CHANNEL, PROJECT_OWNER, PROJECT_RELATIONS, ProjectGraphEvent,
@@ -160,6 +161,7 @@ pub fn register_commands(
     graph: Arc<ProjectGraphService>,
     workspace: Arc<WorkspaceService>,
     scheduler: ProjectGraphScheduler,
+    trust: Arc<TrustService>,
 ) {
     let get_graph = graph.clone();
     dispatcher.register(PROJECT_GRAPH, move |request: ProjectGraphRequest, _ctx| {
@@ -197,12 +199,14 @@ pub fn register_commands(
 
     let affected_graph = graph.clone();
     let affected_workspace = workspace.clone();
+    let affected_trust = trust;
     dispatcher.register(
         AFFECTED_PROJECTS,
         move |request: AffectedProjectsRequest, ctx| {
             let graph = affected_graph.clone();
             let workspace = affected_workspace.clone();
-            async move { affected_projects(graph, workspace, request, ctx).await }
+            let trust = affected_trust.clone();
+            async move { affected_projects(graph, workspace, trust, request, ctx).await }
         },
     );
 
@@ -229,6 +233,7 @@ pub fn register_commands(
 async fn affected_projects(
     graph_service: Arc<ProjectGraphService>,
     workspace: Arc<WorkspaceService>,
+    trust: Arc<TrustService>,
     request: AffectedProjectsRequest,
     ctx: CommandContext,
 ) -> Result<AffectedProjectsResponse, AppError> {
@@ -257,6 +262,12 @@ async fn affected_projects(
             .iter()
             .filter(|detected| matches!(detected.tool, MonorepoTool::Nx | MonorepoTool::Turborepo))
         {
+            // Nx and Turborepo binaries are workspace-supplied code. In
+            // Restricted mode the manifest-only graph remains available, but
+            // native delegation must never reach Command::new.
+            if !native_tool_allowed(&trust, &detected.root) {
+                continue;
+            }
             let files: Vec<PathBuf> = fallback_files
                 .iter()
                 .filter_map(|path| relative_path(&detected.root, path))
@@ -265,9 +276,11 @@ async fn affected_projects(
                 continue;
             }
             let names = match detected.tool {
-                MonorepoTool::Nx => native_nx_affected(&detected.root, &files, &ctx).await,
+                MonorepoTool::Nx => {
+                    native_nx_affected(&detected.root, &files, &ctx, trust.clone()).await
+                }
                 MonorepoTool::Turborepo => {
-                    native_turbo_affected(&detected.root, &files, &graph, &ctx).await
+                    native_turbo_affected(&detected.root, &files, &graph, &ctx, trust.clone()).await
                 }
                 _ => None,
             };
@@ -300,6 +313,12 @@ async fn affected_projects(
     Ok(AffectedProjectsResponse { projects, source })
 }
 
+fn native_tool_allowed(trust: &TrustService, root: &Path) -> bool {
+    trust
+        .require(root, TrustCapability::TaskAutoDetection)
+        .is_ok()
+}
+
 fn apply_native_affected(
     graph: &ProjectGraph,
     root: &Path,
@@ -324,6 +343,7 @@ async fn native_nx_affected(
     root: &Path,
     changed_files: &[PathBuf],
     ctx: &CommandContext,
+    trust: Arc<TrustService>,
 ) -> Option<HashSet<String>> {
     let executable = local_tool(root, "nx");
     let files = changed_files
@@ -346,11 +366,15 @@ async fn native_nx_affected(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    let timeout = ctx.timeout().min(EXTRACTION_TIMEOUT);
-    let output = tokio::select! {
-        _ = ctx.cancelled() => return None,
-        result = tokio::time::timeout(timeout, command.output()) => result.ok()?.ok()?,
-    };
+    let output = trusted_command_output(
+        trust,
+        root,
+        TrustCapability::TaskAutoDetection,
+        "nx affected query",
+        command,
+        ctx,
+    )
+    .await?;
     if !output.status.success() {
         return None;
     }
@@ -370,6 +394,7 @@ async fn native_turbo_affected(
     changed_files: &[PathBuf],
     graph: &ProjectGraph,
     ctx: &CommandContext,
+    trust: Arc<TrustService>,
 ) -> Option<HashSet<String>> {
     let mut package_names = BTreeSet::new();
     let mut select_all = false;
@@ -396,15 +421,49 @@ async fn native_turbo_affected(
             command.arg(format!("--filter=...{name}"));
         }
     }
-    let timeout = ctx.timeout().min(EXTRACTION_TIMEOUT);
-    let output = tokio::select! {
-        _ = ctx.cancelled() => return None,
-        result = tokio::time::timeout(timeout, command.output()) => result.ok()?.ok()?,
-    };
+    let output = trusted_command_output(
+        trust,
+        root,
+        TrustCapability::TaskAutoDetection,
+        "turborepo affected query",
+        command,
+        ctx,
+    )
+    .await?;
     if !output.status.success() {
         return None;
     }
     parse_turbo_packages(&output.stdout)
+}
+
+async fn trusted_command_output(
+    trust: Arc<TrustService>,
+    root: &Path,
+    capability: TrustCapability,
+    label: &'static str,
+    mut command: Command,
+    ctx: &CommandContext,
+) -> Option<std::process::Output> {
+    let (revoked_tx, mut revoked_rx) = tokio::sync::watch::channel(false);
+    let launch_id = trust
+        .register_launch_for(root, capability, label, move || {
+            revoked_tx.send_replace(true);
+        })
+        .ok()?;
+    let timeout = ctx.timeout().min(EXTRACTION_TIMEOUT);
+    let output = tokio::select! {
+        biased;
+        _ = ctx.cancelled() => None,
+        changed = revoked_rx.changed() => {
+            let _ = changed;
+            None
+        },
+        result = tokio::time::timeout(timeout, command.output()) => {
+            result.ok().and_then(Result::ok)
+        },
+    };
+    trust.unregister_launch(launch_id);
+    output
 }
 
 fn parse_turbo_packages(output: &[u8]) -> Option<HashSet<String>> {
@@ -1052,6 +1111,15 @@ mod tests {
     }
 
     #[test]
+    fn native_workspace_tools_are_gated_before_process_launch() {
+        let trust = TrustService::in_memory();
+        let root = Path::new("/tmp/unfamiliar-monorepo");
+        assert!(!native_tool_allowed(&trust, root));
+        trust.trust(root, false).unwrap();
+        assert!(native_tool_allowed(&trust, root));
+    }
+
+    #[test]
     fn stale_generation_cannot_publish() {
         let registry = WorkspaceRegistry::new();
         let _lease = registry.acquire("workspace");
@@ -1180,7 +1248,13 @@ mod tests {
         let workspace = Arc::new(WorkspaceService::with_recent_path(config, fs, logger, None));
         let scheduler = runtime().scheduler;
         let mut dispatcher = IpcDispatcher::new();
-        register_commands(&mut dispatcher, graph, workspace, scheduler);
+        register_commands(
+            &mut dispatcher,
+            graph,
+            workspace,
+            scheduler,
+            Arc::new(TrustService::in_memory()),
+        );
 
         let owner = dispatcher
             .dispatch(helix_ipc::IpcRequest::new(

@@ -1,174 +1,21 @@
-//! Thin Tauri Host: window ownership, invoke termination, and authenticated
-//! forwarding to the authoritative kernel process.
+//! Thin Tauri Host: windows, typed forwarding, and kernel supervision only.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::error::Error;
 use std::path::PathBuf;
-use std::process::Stdio;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use helix_ipc::{
-    CancelRequest, CancelResponse, DEFAULT_TIMEOUT_MS, InternalRpcClient, InternalRpcRequest,
-    InternalRpcResponse, IpcRequest, IpcResponse, KERNEL_EPOCH_ENV, KERNEL_LAUNCH_TOKEN_ENV,
-    KERNEL_READY_PREFIX, KernelReady,
+    CancelRequest, CancelResponse, DEFAULT_TIMEOUT_MS, InternalRpcRequest, InternalRpcResponse,
+    IpcRequest, IpcResponse,
+};
+use helix_supervisor_lib::{
+    KernelSupervisor, RecoveryAction, SupervisorStatus, default_host_state_directory,
 };
 use tauri::State;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, Command};
-use tokio::sync::{Mutex, RwLock};
-
-struct KernelConnection {
-    rpc: InternalRpcClient,
-    child: Mutex<Child>,
-    #[cfg(feature = "ipc-e2e")]
-    address: String,
-    #[cfg(feature = "ipc-e2e")]
-    launch_token: String,
-    #[cfg(feature = "ipc-e2e")]
-    epoch: String,
-}
-
-impl KernelConnection {
-    async fn launch() -> Result<Self, Box<dyn Error + Send + Sync>> {
-        let launch_token = uuid::Uuid::new_v4().to_string();
-        let epoch = uuid::Uuid::new_v4().to_string();
-        let mut child = Command::new(kernel_binary_path()?)
-            .env(KERNEL_LAUNCH_TOKEN_ENV, &launch_token)
-            .env(KERNEL_EPOCH_ENV, &epoch)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .kill_on_drop(true)
-            .spawn()?;
-        let stdout = child.stdout.take().ok_or("kernel stdout was not piped")?;
-        let mut reader = BufReader::new(stdout);
-        let ready = tokio::time::timeout(Duration::from_secs(10), async {
-            loop {
-                let mut line = String::new();
-                if reader.read_line(&mut line).await? == 0 {
-                    return Err::<KernelReady, Box<dyn Error + Send + Sync>>(
-                        "kernel exited before readiness handshake".into(),
-                    );
-                }
-                if let Some(payload) = line.strip_prefix(KERNEL_READY_PREFIX) {
-                    return Ok::<KernelReady, Box<dyn Error + Send + Sync>>(serde_json::from_str(
-                        payload,
-                    )?);
-                }
-                eprint!("{line}");
-            }
-        })
-        .await
-        .map_err(|_| "kernel readiness handshake timed out")??;
-        if ready.epoch != epoch {
-            return Err("kernel readiness handshake carried a stale epoch".into());
-        }
-        tokio::spawn(async move {
-            let mut line = String::new();
-            loop {
-                line.clear();
-                match reader.read_line(&mut line).await {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => eprint!("{line}"),
-                }
-            }
-        });
-        let address = format!("127.0.0.1:{}", ready.port);
-        Ok(Self {
-            rpc: InternalRpcClient::new(&address, &launch_token, &epoch),
-            child: Mutex::new(child),
-            #[cfg(feature = "ipc-e2e")]
-            address,
-            #[cfg(feature = "ipc-e2e")]
-            launch_token,
-            #[cfg(feature = "ipc-e2e")]
-            epoch,
-        })
-    }
-
-    async fn call(
-        &self,
-        request: InternalRpcRequest,
-        timeout: Duration,
-    ) -> Result<InternalRpcResponse, String> {
-        self.rpc
-            .call(request, timeout)
-            .await
-            .map_err(|error| error.to_string())
-    }
-
-    fn terminate(&self) {
-        if let Ok(mut child) = self.child.try_lock() {
-            let _ = child.start_kill();
-        }
-    }
-}
-
-struct KernelClient {
-    connection: RwLock<Arc<KernelConnection>>,
-}
-
-impl KernelClient {
-    async fn launch() -> Result<Self, Box<dyn Error + Send + Sync>> {
-        Ok(Self {
-            connection: RwLock::new(Arc::new(KernelConnection::launch().await?)),
-        })
-    }
-
-    async fn call(
-        &self,
-        request: InternalRpcRequest,
-        timeout: Duration,
-    ) -> Result<InternalRpcResponse, String> {
-        let connection = self.connection.read().await.clone();
-        connection.call(request, timeout).await
-    }
-
-    fn terminate(&self) {
-        if let Ok(connection) = self.connection.try_read() {
-            connection.terminate();
-        }
-    }
-
-    #[cfg(feature = "ipc-e2e")]
-    async fn restart_and_probe_stale_peer(&self) -> Result<bool, String> {
-        let replacement = Arc::new(
-            KernelConnection::launch()
-                .await
-                .map_err(|error| error.to_string())?,
-        );
-        let (previous, stale_client) = {
-            let mut connection = self.connection.write().await;
-            let previous = std::mem::replace(&mut *connection, replacement.clone());
-            let stale_client = InternalRpcClient::new(
-                &replacement.address,
-                &previous.launch_token,
-                &previous.epoch,
-            );
-            (previous, stale_client)
-        };
-        previous.terminate();
-
-        let response = stale_client
-            .call(
-                InternalRpcRequest::Dispatch(IpcRequest::new(
-                    helix_ipc::PING,
-                    "ipc-e2e-stale-peer",
-                    serde_json::json!({ "message": "must be rejected" }),
-                )),
-                Duration::from_secs(5),
-            )
-            .await
-            .map_err(|error| error.to_string())?;
-        Ok(matches!(
-            response,
-            InternalRpcResponse::ProtocolError { message }
-                if message.contains("unauthorized or stale")
-        ))
-    }
-}
 
 fn kernel_binary_path() -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
     if let Some(path) = std::env::var_os("HELIX_KERNEL_BIN") {
@@ -181,7 +28,7 @@ fn kernel_binary_path() -> Result<PathBuf, Box<dyn Error + Send + Sync>> {
 
 #[tauri::command]
 async fn ipc_dispatch(
-    client: State<'_, Arc<KernelClient>>,
+    supervisor: State<'_, Arc<KernelSupervisor>>,
     request: IpcRequest<serde_json::Value>,
 ) -> Result<IpcResponse<serde_json::Value>, String> {
     let correlation_id = request.correlation_id.clone();
@@ -193,13 +40,13 @@ async fn ipc_dispatch(
                 .unwrap_or(DEFAULT_TIMEOUT_MS),
         ) + 1_000,
     );
-    let response = match client
+    let response = match supervisor
         .call(InternalRpcRequest::Dispatch(request), timeout)
         .await
     {
         Ok(response) => response,
         Err(error) => {
-            let _ = client
+            let _ = supervisor
                 .call(
                     InternalRpcRequest::Cancel(CancelRequest { correlation_id }),
                     Duration::from_secs(5),
@@ -211,29 +58,45 @@ async fn ipc_dispatch(
     match response {
         InternalRpcResponse::Dispatch(response) => Ok(response),
         InternalRpcResponse::ProtocolError { message } => Err(message),
-        InternalRpcResponse::Cancel(_) => Err("kernel returned an unexpected response".into()),
+        _ => Err("kernel returned an unexpected response".into()),
     }
 }
 
 #[tauri::command]
 async fn ipc_cancel(
-    client: State<'_, Arc<KernelClient>>,
+    supervisor: State<'_, Arc<KernelSupervisor>>,
     request: CancelRequest,
 ) -> Result<CancelResponse, String> {
-    match client
+    match supervisor
         .call(InternalRpcRequest::Cancel(request), Duration::from_secs(5))
         .await?
     {
         InternalRpcResponse::Cancel(response) => Ok(response),
         InternalRpcResponse::ProtocolError { message } => Err(message),
-        InternalRpcResponse::Dispatch(_) => Err("kernel returned an unexpected response".into()),
+        _ => Err("kernel returned an unexpected response".into()),
     }
+}
+
+#[tauri::command]
+async fn supervisor_status(
+    supervisor: State<'_, Arc<KernelSupervisor>>,
+) -> Result<SupervisorStatus, String> {
+    Ok(supervisor.status().await)
+}
+
+#[tauri::command]
+async fn supervisor_recovery_action(
+    supervisor: State<'_, Arc<KernelSupervisor>>,
+    action: RecoveryAction,
+) -> Result<(), String> {
+    supervisor.recovery_action(action).await;
+    Ok(())
 }
 
 #[cfg(feature = "ipc-e2e")]
 #[tauri::command]
-async fn ipc_e2e_restart(client: State<'_, Arc<KernelClient>>) -> Result<bool, String> {
-    client.restart_and_probe_stale_peer().await
+async fn ipc_e2e_restart(supervisor: State<'_, Arc<KernelSupervisor>>) -> Result<bool, String> {
+    supervisor.restart_and_probe_stale_peer().await
 }
 
 #[cfg(feature = "ipc-e2e")]
@@ -252,27 +115,52 @@ async fn ipc_e2e_report(app: tauri::AppHandle, report: serde_json::Value) -> Res
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let client = Arc::new(
-        tauri::async_runtime::block_on(KernelClient::launch())
-            .expect("failed to launch helix-kernel"),
-    );
-    let shutdown_client = client.clone();
-    let builder = tauri::Builder::default().manage(client);
+    let host_state = default_host_state_directory()
+        .unwrap_or_else(|| std::env::temp_dir().join("helix-state").join("host"));
+    let supervisor = tauri::async_runtime::block_on(async {
+        let supervisor = KernelSupervisor::launch(
+            kernel_binary_path().expect("failed to resolve helix-kernel"),
+            host_state,
+        )
+        .await;
+        supervisor
+            .wait_until_ready(Duration::from_secs(10))
+            .await
+            .expect("failed to launch helix-kernel");
+        supervisor
+    });
+    let shutdown_started = Arc::new(AtomicBool::new(false));
+    let builder = tauri::Builder::default().manage(supervisor.clone());
     #[cfg(not(feature = "ipc-e2e"))]
-    let builder = builder.invoke_handler(tauri::generate_handler![ipc_dispatch, ipc_cancel]);
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        ipc_dispatch,
+        ipc_cancel,
+        supervisor_status,
+        supervisor_recovery_action,
+    ]);
     #[cfg(feature = "ipc-e2e")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         ipc_dispatch,
         ipc_cancel,
+        supervisor_status,
+        supervisor_recovery_action,
         ipc_e2e_restart,
-        ipc_e2e_report
+        ipc_e2e_report,
     ]);
     let app = builder
         .build(tauri::generate_context!())
         .expect("failed to build Helix Host");
-    app.run(move |_handle, event| {
-        if let tauri::RunEvent::Exit = event {
-            shutdown_client.terminate();
+    app.run(move |handle, event| {
+        if let tauri::RunEvent::ExitRequested { api, .. } = event
+            && !shutdown_started.swap(true, Ordering::SeqCst)
+        {
+            api.prevent_exit();
+            let supervisor = supervisor.clone();
+            let handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                supervisor.shutdown().await;
+                handle.exit(0);
+            });
         }
     });
 }

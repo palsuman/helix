@@ -28,6 +28,8 @@ export const STREAM_CHANNELS = {
    * subscribed, so a closed log viewer costs nothing.
    */
   logEntries: "log:entries",
+  /** Workspace trust changes (Task 1.13, REQ-FS-005). */
+  trustChanged: "trust:changed",
 } as const;
 
 export function streamEndpoint(

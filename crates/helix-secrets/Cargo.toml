@@ -1,0 +1,29 @@
+[package]
+name = "helix-secrets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+argon2 = "=0.5.3"
+base64 = "=0.22.1"
+chacha20poly1305 = "=0.10.1"
+helix-core = { path = "../helix-core" }
+helix-fs = { path = "../helix-fs" }
+helix-log = { path = "../helix-log" }
+keyring = { version = "=4.1.6", features = ["apple-native-keyring-store", "dbus-secret-service-keyring-store", "windows-native-keyring-store"] }
+rand = "=0.9.1"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.145"
+thiserror = "=2.0.19"
+ts-rs = "=12.0.1"
+zeroize = "=1.8.1"
+
+[[bin]]
+name = "helix-git-credential"
+path = "src/bin/helix-git-credential.rs"
+
+[dev-dependencies]
+tempfile = "=3.26.0"

@@ -28,6 +28,7 @@ pub use dispatcher::{CancelToken, CommandContext, IpcDispatcher};
 pub use envelope::{CancelRequest, CancelResponse, DEFAULT_TIMEOUT_MS, IpcRequest, IpcResponse};
 pub use internal_rpc::{
     AuthenticatedRpcRequest, InternalRpcClient, InternalRpcRequest, InternalRpcResponse,
-    KERNEL_EPOCH_ENV, KERNEL_LAUNCH_TOKEN_ENV, KERNEL_READY_PREFIX, KernelReady,
-    MAX_INTERNAL_RPC_BYTES, serve_internal_rpc_request,
+    KERNEL_CRASH_HANDOFF_ENV, KERNEL_EPOCH_ENV, KERNEL_LAUNCH_TOKEN_ENV, KERNEL_READY_PREFIX,
+    KERNEL_SAFE_MODE_ENV, KERNEL_SKIP_SESSION_RESTORE_ENV, KernelReady, MAX_INTERNAL_RPC_BYTES,
+    serve_internal_rpc_request, serve_internal_rpc_request_with_shutdown,
 };

@@ -11,6 +11,8 @@ import {
   useStreamStatus,
 } from "./stream";
 import type { PingResponse } from "./generated/PingResponse";
+import { RecoveryOverlay, SupervisorClient, supervisor } from "./supervisor";
+import { TrustSurface } from "./trust";
 
 // Task 1.3, 1.4, and 1.5 demo surface: the frontend invokes a typed command
 // and renders the typed response, cancelling a simulated 10s command aborts it
@@ -59,9 +61,11 @@ function asIpcError(value: unknown): IpcError {
 function App({
   client = ipc,
   streamClient = stream,
+  supervisorClient = supervisor,
 }: {
   client?: IpcClient;
   streamClient?: StreamClient;
+  supervisorClient?: SupervisorClient;
 }) {
   const [pingState, setPingState] = useState<PingState>({ kind: "loading" });
   const [longState, setLongState] = useState<LongCommandState>({ kind: "idle" });
@@ -155,6 +159,7 @@ function App({
         background: "#1a1a2e",
       }}
     >
+      <RecoveryOverlay client={supervisorClient} />
       <h1>Helix</h1>
 
       <section aria-labelledby="ipc-round-trip">
@@ -213,6 +218,13 @@ function App({
             Output truncated: {truncation.dropped} message(s) dropped on {truncation.channel}
           </p>
         )}
+      </section>
+
+      <section aria-labelledby="workspace-trust">
+        <h2 id="workspace-trust" style={{ fontSize: "1rem" }}>
+          Workspace trust
+        </h2>
+        <TrustSurface client={client} streamClient={streamClient} />
       </section>
 
       <section style={{ width: "min(60rem, 90vw)" }}>
