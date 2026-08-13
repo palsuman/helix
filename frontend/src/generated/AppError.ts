@@ -4,9 +4,4 @@ import type { ErrorCategory } from "./ErrorCategory";
 /**
  * The error type returned by kernel service operations.
  */
-export type AppError = {
-  code: string;
-  category: ErrorCategory;
-  message: string;
-  details: unknown | null;
-};
+export type AppError = { code: string, category: ErrorCategory, message: string, details: unknown | null, };

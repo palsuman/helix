@@ -4,4 +4,4 @@
  * `ipc.sleep` response, reporting how long the kernel actually slept
  * before returning.
  */
-export type SleepResponse = { slept_ms: number };
+export type SleepResponse = { slept_ms: number, };

@@ -7,20 +7,17 @@ import type { WorkspaceSnapshot } from "./WorkspaceSnapshot";
  * A workspace change, delivered to listeners and published on the streaming
  * channel.
  */
-export type WorkspaceEvent = {
-  kind: WorkspaceEventKind;
-  key: string;
-  /**
-   * The workspace after the change. Absent for the close that tore it down,
-   * because there is nothing left to describe.
-   */
-  workspace: WorkspaceSnapshot | null;
-  /**
-   * Roots this change was about, for a listener that only cares about those.
-   */
-  roots: Array<WorkspaceRoot>;
-  /**
-   * True on a `Closed` event that released the last holder.
-   */
-  torn_down: boolean;
-};
+export type WorkspaceEvent = { kind: WorkspaceEventKind, key: string, 
+/**
+ * The workspace after the change. Absent for the close that tore it down,
+ * because there is nothing left to describe.
+ */
+workspace: WorkspaceSnapshot | null, 
+/**
+ * Roots this change was about, for a listener that only cares about those.
+ */
+roots: Array<WorkspaceRoot>, 
+/**
+ * True on a `Closed` event that released the last holder.
+ */
+torn_down: boolean, };

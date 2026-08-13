@@ -5,4 +5,4 @@
  * correlation ID was not in flight, which is a normal race (the command
  * finished first), not an error.
  */
-export type CancelResponse = { correlation_id: string; cancelled: boolean };
+export type CancelResponse = { correlation_id: string, cancelled: boolean, };

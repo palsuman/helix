@@ -4,4 +4,4 @@ import type { RecentWorkspace } from "./RecentWorkspace";
 /**
  * The list, most recently opened first.
  */
-export type RecentWorkspaces = { entries: Array<RecentWorkspace> };
+export type RecentWorkspaces = { entries: Array<RecentWorkspace>, };

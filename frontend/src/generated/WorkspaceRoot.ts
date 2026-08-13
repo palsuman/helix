@@ -4,19 +4,17 @@ import type { RootAvailability } from "./RootAvailability";
 /**
  * One root of an open workspace.
  */
-export type WorkspaceRoot = {
-  /**
-   * Absolute path, as resolved when the workspace opened.
-   */
-  path: string;
-  /**
-   * Display name: the authored `name`, or the final path segment.
-   */
-  name: string;
-  availability: RootAvailability;
-  /**
-   * True for the root the workspace document and workspace-level settings
-   * live under.
-   */
-  primary: boolean;
-};
+export type WorkspaceRoot = { 
+/**
+ * Absolute path, as resolved when the workspace opened.
+ */
+path: string, 
+/**
+ * Display name: the authored `name`, or the final path segment.
+ */
+name: string, availability: RootAvailability, 
+/**
+ * True for the root the workspace document and workspace-level settings
+ * live under.
+ */
+primary: boolean, };

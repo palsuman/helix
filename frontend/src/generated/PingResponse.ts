@@ -3,4 +3,4 @@
 /**
  * `ipc.ping` response.
  */
-export type PingResponse = { echo: string; kernel_version: string };
+export type PingResponse = { echo: string, kernel_version: string, };

@@ -3,4 +3,4 @@
 /**
  * `fs.unwatch` request.
  */
-export type FsUnwatchRequest = { root: string };
+export type FsUnwatchRequest = { root: string, };

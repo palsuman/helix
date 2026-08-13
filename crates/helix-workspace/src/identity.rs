@@ -134,6 +134,28 @@ pub fn same_path(left: &Path, right: &Path) -> bool {
     comparison_key(left) == comparison_key(right)
 }
 
+/// Express `target` relative to `base` using the platform's path comparison
+/// rules. Unlike `Path::strip_prefix`, this accepts Windows verbatim and
+/// case-equivalent spellings of the same path.
+pub fn relative_path(base: &Path, target: &Path) -> Option<PathBuf> {
+    let base = comparison_key(base);
+    let target = comparison_key(target);
+    if target == base {
+        return Some(PathBuf::new());
+    }
+    let prefix = if base == "/" {
+        base
+    } else {
+        format!("{base}/")
+    };
+    target.strip_prefix(&prefix).map(PathBuf::from)
+}
+
+/// Whether `target` is `base` or a descendant of it by platform path rules.
+pub fn path_contains(base: &Path, target: &Path) -> bool {
+    relative_path(base, target).is_some()
+}
+
 /// Key derived from a root set, used when the document has no `id`.
 pub fn key_from_roots(roots: &[PathBuf]) -> String {
     let joined = canonical_root_set(roots)
@@ -150,6 +172,49 @@ pub fn workspace_key(id: Option<&str>, roots: &[PathBuf]) -> String {
     match id {
         Some(id) if !id.trim().is_empty() => id.trim().to_string(),
         _ => key_from_roots(roots),
+    }
+}
+
+/// Platform cache directory for one workspace. Graphs are rebuildable and
+/// therefore belong in the OS cache location, never in the repository or the
+/// state directory used for unsaved work.
+pub fn workspace_cache_directory(key: &str) -> Option<PathBuf> {
+    let component: String = key
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.') {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let component = if component.is_empty() {
+        "workspace"
+    } else {
+        &component
+    };
+
+    if cfg!(target_os = "windows") {
+        std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .map(|base| base.join("Helix").join("cache").join(component))
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME").map(PathBuf::from).map(|home| {
+            home.join("Library")
+                .join("Caches")
+                .join("Helix")
+                .join(component)
+        })
+    } else {
+        std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".cache"))
+            })
+            .map(|base| base.join("helix").join(component))
     }
 }
 
@@ -244,6 +309,29 @@ mod tests {
             canonical_path(&missing),
             PathBuf::from("/definitely/not/mounted/project"),
             "an unavailable root still has to produce a stable key"
+        );
+    }
+
+    #[test]
+    fn relative_paths_accept_platform_equivalent_spellings() {
+        let base = Path::new(r"\\?\C:\Work\Repo");
+        let target = Path::new(r"c:\work\repo\packages\App\src\main.ts");
+        if cfg!(any(windows, target_os = "macos")) {
+            assert_eq!(
+                relative_path(base, target),
+                Some(PathBuf::from("packages/app/src/main.ts"))
+            );
+            assert!(path_contains(base, target));
+        }
+        assert!(!path_contains(base, Path::new(r"C:\Work\Repository\file")));
+    }
+
+    #[test]
+    fn a_cache_key_cannot_escape_the_platform_cache_directory() {
+        let path = workspace_cache_directory("../../other/workspace").unwrap();
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some(".._.._other_workspace")
         );
     }
 }

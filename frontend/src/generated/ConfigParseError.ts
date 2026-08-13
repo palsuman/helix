@@ -3,18 +3,16 @@
 /**
  * A syntax error in a settings file, with enough location to highlight it.
  */
-export type ConfigParseError = {
-  /**
-   * Absolute path of the file that failed to parse.
-   */
-  path: string;
-  message: string;
-  /**
-   * 1-based line, as reported by the parser against the original text.
-   */
-  line: number;
-  /**
-   * 1-based column.
-   */
-  column: number;
-};
+export type ConfigParseError = { 
+/**
+ * Absolute path of the file that failed to parse.
+ */
+path: string, message: string, 
+/**
+ * 1-based line, as reported by the parser against the original text.
+ */
+line: number, 
+/**
+ * 1-based column.
+ */
+column: number, };

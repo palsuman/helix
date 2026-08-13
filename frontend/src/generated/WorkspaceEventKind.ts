@@ -3,11 +3,4 @@
 /**
  * What happened to a workspace.
  */
-export type WorkspaceEventKind =
-  | "opened"
-  | "closed"
-  | "roots_changed"
-  | "availability_changed"
-  | "settings_changed"
-  | "document_written"
-  | "document_changed";
+export type WorkspaceEventKind = "opened" | "closed" | "roots_changed" | "availability_changed" | "settings_changed" | "document_written" | "document_changed";

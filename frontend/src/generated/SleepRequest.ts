@@ -3,4 +3,4 @@
 /**
  * `ipc.sleep` request — a simulated long-running command.
  */
-export type SleepRequest = { duration_ms: number };
+export type SleepRequest = { duration_ms: number, };

@@ -3,4 +3,4 @@
 /**
  * `ipc.ping` request.
  */
-export type PingRequest = { message: string };
+export type PingRequest = { message: string, };

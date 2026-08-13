@@ -7,8 +7,4 @@
  * the reference-counted behaviour the design document requires: closing one of
  * two windows on a workspace must not stop its language servers.
  */
-export type WorkspaceCloseResponse = {
-  closed: boolean;
-  torn_down: boolean;
-  remaining_holders: number;
-};
+export type WorkspaceCloseResponse = { closed: boolean, torn_down: boolean, remaining_holders: number, };

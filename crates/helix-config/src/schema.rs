@@ -382,6 +382,15 @@ impl SchemaRegistry {
             )
             .range(100.0, 60_000.0),
             SettingSchema::new(
+                "state.retentionDays",
+                SettingKind::Integer,
+                json!(30),
+                "Files",
+                "Days to retain session state after every workspace root becomes unavailable.",
+            )
+            .range(1.0, 3650.0)
+            .user_only(),
+            SettingSchema::new(
                 "files.encoding",
                 SettingKind::String,
                 json!("utf8"),

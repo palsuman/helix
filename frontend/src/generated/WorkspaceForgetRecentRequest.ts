@@ -3,4 +3,4 @@
 /**
  * `workspace.forgetRecent` request.
  */
-export type WorkspaceForgetRecentRequest = { key: string };
+export type WorkspaceForgetRecentRequest = { key: string, };

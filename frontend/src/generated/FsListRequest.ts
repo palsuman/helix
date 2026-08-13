@@ -3,11 +3,9 @@
 /**
  * `fs.list` request.
  */
-export type FsListRequest = {
-  path: string;
-  /**
-   * Walk the whole subtree. The explorer expands one level at a time, so
-   * this defaults to false; the index and the watcher budget want it true.
-   */
-  recursive: boolean;
-};
+export type FsListRequest = { path: string, 
+/**
+ * Walk the whole subtree. The explorer expands one level at a time, so
+ * this defaults to false; the index and the watcher budget want it true.
+ */
+recursive: boolean, };

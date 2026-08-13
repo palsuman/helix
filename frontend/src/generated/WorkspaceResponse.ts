@@ -6,4 +6,4 @@ import type { WorkspaceSnapshot } from "./WorkspaceSnapshot";
  * with the resulting workspace, so a caller never has to follow up with a
  * read to find out what happened.
  */
-export type WorkspaceResponse = { workspace: WorkspaceSnapshot };
+export type WorkspaceResponse = { workspace: WorkspaceSnapshot, };

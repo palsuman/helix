@@ -4,4 +4,4 @@ import type { ConfigScope } from "./ConfigScope";
 /**
  * One layer and where it lives.
  */
-export type ConfigScopeInfo = { scope: ConfigScope; path: string | null; writable: boolean };
+export type ConfigScopeInfo = { scope: ConfigScope, path: string | null, writable: boolean, };

@@ -4,16 +4,13 @@
  * `log.export` response: the filtered set as JSON lines
  * (REQ-OBS-001.5).
  */
-export type LogExportResponse = {
-  /**
-   * `jsonl`, matching the on-disk log format exactly so an exported set
-   * and a log file can be concatenated.
-   */
-  format: string;
-  content: string;
-  entry_count: number;
-  /**
-   * Suggested file name for a save dialog.
-   */
-  suggested_file_name: string;
-};
+export type LogExportResponse = { 
+/**
+ * `jsonl`, matching the on-disk log format exactly so an exported set
+ * and a log file can be concatenated.
+ */
+format: string, content: string, entry_count: number, 
+/**
+ * Suggested file name for a save dialog.
+ */
+suggested_file_name: string, };

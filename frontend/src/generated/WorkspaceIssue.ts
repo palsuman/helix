@@ -4,11 +4,8 @@ import type { WorkspaceIssueKind } from "./WorkspaceIssueKind";
 /**
  * One problem with the workspace document, with enough detail to point at it.
  */
-export type WorkspaceIssue = {
-  kind: WorkspaceIssueKind;
-  /**
-   * The offending field, e.g. `folders[2].path`.
-   */
-  field: string;
-  message: string;
-};
+export type WorkspaceIssue = { kind: WorkspaceIssueKind, 
+/**
+ * The offending field, e.g. `folders[2].path`.
+ */
+field: string, message: string, };

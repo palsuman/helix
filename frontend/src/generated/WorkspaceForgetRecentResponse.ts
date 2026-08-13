@@ -3,4 +3,4 @@
 /**
  * `workspace.forgetRecent` response.
  */
-export type WorkspaceForgetRecentResponse = { forgotten: boolean };
+export type WorkspaceForgetRecentResponse = { forgotten: boolean, };

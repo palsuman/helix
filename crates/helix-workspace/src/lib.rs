@@ -40,22 +40,36 @@
 pub mod commands;
 pub mod identity;
 pub mod model;
+pub mod project_graph;
 pub mod recent;
 pub mod registry;
 pub mod service;
 pub mod settings;
 
 pub use commands::{
-    CHANNEL, WorkspaceCloseRequest, WorkspaceCloseResponse, WorkspaceForgetRecentRequest,
+    AffectedProjectsRequest, AffectedProjectsResponse, AffectedProjectsSource, CHANNEL,
+    PROJECT_GRAPH_CHANNEL, ProjectGraphEvent, ProjectGraphEventKind, ProjectGraphRequest,
+    ProjectGraphResponse, ProjectOwnerRequest, ProjectOwnerResponse, ProjectRelationsRequest,
+    ProjectRelationsResponse, RefreshProjectGraphRequest, RefreshProjectGraphResponse,
+    WorkspaceCloseRequest, WorkspaceCloseResponse, WorkspaceForgetRecentRequest,
     WorkspaceForgetRecentResponse, WorkspaceListRequest, WorkspaceListResponse,
     WorkspaceOpenRequest, WorkspaceRecentRequest, WorkspaceRecentResponse, WorkspaceResponse,
     WorkspaceRootRequest, WorkspaceSchemaRequest, WorkspaceSchemaResponse,
     WorkspaceSettingsRequest, WorkspaceSettingsResponse,
 };
-pub use identity::{generate_id, key_from_roots, same_path, workspace_key};
+pub use identity::{
+    generate_id, key_from_roots, path_contains, relative_path, same_path,
+    workspace_cache_directory, workspace_key,
+};
 pub use model::{
     FolderEntry, MAX_ROOTS, RootAvailability, WORKSPACE_FILE_NAME, WorkspaceFile, WorkspaceIssue,
     WorkspaceIssueKind, WorkspaceRoot, workspace_file_path_in, workspace_json_schema,
+};
+pub use project_graph::{
+    CachedProjectGraph, DetectedTool, ExtractionWarning, MonorepoTool, Project, ProjectGraph,
+    ProjectGraphCache, ProjectGraphExtraction, ProjectGraphService, ProjectGraphStatus,
+    SourceFingerprint, ToolDetection, detect_tools, extract_project_graph, fingerprint_sources,
+    is_graph_source_file,
 };
 pub use recent::{MAX_RECENT, RecentWorkspace, RecentWorkspaces, recent_path};
 pub use registry::{TeardownHook, WorkspaceLease, WorkspaceRegistry};

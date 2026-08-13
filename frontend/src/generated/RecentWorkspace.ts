@@ -3,17 +3,14 @@
 /**
  * One entry in the recent list.
  */
-export type RecentWorkspace = {
-  /**
-   * The workspace key, which is what makes re-opening move an entry rather
-   * than duplicate it.
-   */
-  key: string;
-  name: string;
-  /**
-   * Absolute roots, in workspace order, so the welcome experience can show
-   * what a workspace actually is (REQ-WB-004.4).
-   */
-  roots: Array<string>;
-  last_opened_ms: bigint;
-};
+export type RecentWorkspace = { 
+/**
+ * The workspace key, which is what makes re-opening move an entry rather
+ * than duplicate it.
+ */
+key: string, name: string, 
+/**
+ * Absolute roots, in workspace order, so the welcome experience can show
+ * what a workspace actually is (REQ-WB-004.4).
+ */
+roots: Array<string>, last_opened_ms: bigint, };

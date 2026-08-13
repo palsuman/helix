@@ -6,9 +6,4 @@ import type { SettingValue } from "./SettingValue";
  * Result of a write: what moved, what needs a restart, and the setting's new
  * effective state, so the caller does not have to follow up with a `get`.
  */
-export type ConfigWriteResponse = {
-  scope: ConfigScope;
-  changed_keys: Array<string>;
-  requires_restart: Array<string>;
-  setting: SettingValue | null;
-};
+export type ConfigWriteResponse = { scope: ConfigScope, changed_keys: Array<string>, requires_restart: Array<string>, setting: SettingValue | null, };

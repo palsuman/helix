@@ -4,4 +4,4 @@
  * `workspace.schema` response: the JSON Schema for `.helix/workspace.json`,
  * so a hand-edited document validates in the editor (REQ-FS-001.2).
  */
-export type WorkspaceSchemaResponse = { schema: unknown };
+export type WorkspaceSchemaResponse = { schema: unknown, };

@@ -8,15 +8,9 @@ import type { LogRecord } from "./LogRecord";
  * have fallen out of the ring since launch, so the viewer can distinguish
  * "no more entries" from "no more entries retained".
  */
-export type LogQueryResponse = {
-  entries: Array<LogRecord>;
-  matched: number;
-  ring_len: number;
-  ring_capacity: number;
-  evicted: number;
-  /**
-   * Distinct sources currently in the ring, so the viewer's source filter
-   * lists what actually logged.
-   */
-  sources: Array<string>;
-};
+export type LogQueryResponse = { entries: Array<LogRecord>, matched: number, ring_len: number, ring_capacity: number, evicted: number, 
+/**
+ * Distinct sources currently in the ring, so the viewer's source filter
+ * lists what actually logged.
+ */
+sources: Array<string>, };

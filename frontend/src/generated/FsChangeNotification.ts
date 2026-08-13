@@ -4,4 +4,4 @@ import type { FileChange } from "./FileChange";
 /**
  * The payload published on [`CHANNEL`].
  */
-export type FsChangeNotification = { changes: Array<FileChange> };
+export type FsChangeNotification = { changes: Array<FileChange>, };

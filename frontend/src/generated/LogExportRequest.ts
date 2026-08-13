@@ -4,4 +4,4 @@ import type { LogQuery } from "./LogQuery";
 /**
  * `log.export` request: the same filter as a query.
  */
-export type LogExportRequest = { query: LogQuery };
+export type LogExportRequest = { query: LogQuery, };

@@ -4,4 +4,4 @@ import type { RecentWorkspace } from "./RecentWorkspace";
 /**
  * `workspace.recent` response, most recently opened first (REQ-FS-001.6).
  */
-export type WorkspaceRecentResponse = { entries: Array<RecentWorkspace> };
+export type WorkspaceRecentResponse = { entries: Array<RecentWorkspace>, };

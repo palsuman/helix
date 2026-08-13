@@ -5,4 +5,4 @@
  * disabled for its source, which the frontend can use to stop shipping
  * records nobody keeps.
  */
-export type LogAppendResponse = { recorded: boolean; source: string };
+export type LogAppendResponse = { recorded: boolean, source: string, };

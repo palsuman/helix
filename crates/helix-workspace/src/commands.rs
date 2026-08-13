@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use ts_rs::TS;
 
+use crate::project_graph::{Project, ProjectGraph};
 use crate::recent::RecentWorkspace;
 use crate::service::WorkspaceSnapshot;
 
@@ -28,11 +29,19 @@ pub const RECENT: &str = "workspace.recent";
 pub const FORGET_RECENT: &str = "workspace.forgetRecent";
 pub const REFRESH: &str = "workspace.refresh";
 pub const SCHEMA: &str = "workspace.schema";
+pub const PROJECT_GRAPH: &str = "workspace.projectGraph";
+pub const PROJECT_OWNER: &str = "workspace.projectOwner";
+pub const PROJECT_RELATIONS: &str = "workspace.projectRelations";
+pub const AFFECTED_PROJECTS: &str = "workspace.affectedProjects";
+pub const REFRESH_PROJECT_GRAPH: &str = "workspace.refreshProjectGraph";
 
 /// Streaming channel carrying workspace lifecycle and root changes. Every
 /// window subscribes, which is how a root added in one window reaches the
 /// explorer in another window bound to the same workspace.
 pub const CHANNEL: &str = "workspace:changed";
+/// Streaming channel carrying project-graph loading, update, and degradation
+/// events.
+pub const PROJECT_GRAPH_CHANNEL: &str = "workspace:projectGraphChanged";
 
 /// `workspace.open` request. The first root is the primary: the one whose
 /// `.helix/workspace.json` and workspace settings apply.
@@ -172,6 +181,101 @@ pub struct WorkspaceSchemaResponse {
     pub schema: Value,
 }
 
+/// Request for the current graph of an open workspace.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(default)]
+pub struct ProjectGraphRequest {
+    pub key: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct ProjectGraphResponse {
+    pub graph: ProjectGraph,
+}
+
+/// Resolve the deepest project containing a path.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(default)]
+pub struct ProjectOwnerRequest {
+    pub key: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct ProjectOwnerResponse {
+    pub project: Option<Project>,
+}
+
+/// Query both directions of one project's direct edges.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(default)]
+pub struct ProjectRelationsRequest {
+    pub key: String,
+    pub project_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct ProjectRelationsResponse {
+    pub dependencies: Vec<Project>,
+    pub dependents: Vec<Project>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(default)]
+pub struct AffectedProjectsRequest {
+    pub key: String,
+    pub changed_files: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(rename_all = "snake_case")]
+pub enum AffectedProjectsSource {
+    Tool,
+    Graph,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct AffectedProjectsResponse {
+    pub projects: Vec<Project>,
+    pub source: AffectedProjectsSource,
+}
+
+/// Explicit refresh request; watcher-driven refreshes use the same scheduler.
+pub type RefreshProjectGraphRequest = ProjectGraphRequest;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct RefreshProjectGraphResponse {
+    pub accepted: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectGraphEventKind {
+    Loading,
+    Updated,
+    Degraded,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct ProjectGraphEvent {
+    pub kind: ProjectGraphEventKind,
+    pub key: String,
+    pub graph: Option<ProjectGraph>,
+    pub message: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,10 +293,16 @@ mod tests {
             FORGET_RECENT,
             REFRESH,
             SCHEMA,
+            PROJECT_GRAPH,
+            PROJECT_OWNER,
+            PROJECT_RELATIONS,
+            AFFECTED_PROJECTS,
+            REFRESH_PROJECT_GRAPH,
         ] {
             assert!(name.starts_with("workspace."), "{name}");
         }
         assert_eq!(CHANNEL, "workspace:changed");
+        assert_eq!(PROJECT_GRAPH_CHANNEL, "workspace:projectGraphChanged");
     }
 
     #[test]

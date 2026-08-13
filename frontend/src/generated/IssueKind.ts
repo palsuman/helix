@@ -3,5 +3,4 @@
 /**
  * Why a value in a settings file was not usable.
  */
-export type IssueKind =
-  "unknown_key" | "type_mismatch" | "not_allowed" | "out_of_range" | "secret" | "wrong_scope";
+export type IssueKind = "unknown_key" | "type_mismatch" | "not_allowed" | "out_of_range" | "secret" | "wrong_scope";

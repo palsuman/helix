@@ -8,43 +8,42 @@ import type { LogLevel } from "./LogLevel";
  * Every field is optional and they compose with AND. `Default` therefore
  * means "everything", which is the state the viewer opens in.
  */
-export type LogQuery = {
-  /**
-   * Records at this level or above.
-   */
-  min_level: LogLevel | null;
-  /**
-   * Records at exactly one of these levels. Combined with `min_level` by
-   * AND, which lets the viewer offer both a threshold and a set of
-   * checkboxes without them contradicting each other.
-   */
-  levels: Array<LogLevel> | null;
-  /**
-   * Sources to include. A source matches if it equals an entry or is a
-   * dot-separated descendant of one, so filtering to `kernel` includes
-   * `kernel.ipc`.
-   */
-  sources: Array<string> | null;
-  /**
-   * Inclusive RFC 3339 lower bound on `ts`.
-   */
-  from_ts: string | null;
-  /**
-   * Inclusive RFC 3339 upper bound on `ts`.
-   */
-  to_ts: string | null;
-  /**
-   * Case-insensitive substring searched across message, source, and the
-   * serialized fields.
-   */
-  search: string | null;
-  /**
-   * Exact correlation ID, which is how the viewer answers "what did the
-   * kernel do for this command" (REQ-OBS-001.9).
-   */
-  correlation_id: string | null;
-  /**
-   * Maximum number of records returned, newest first.
-   */
-  limit: number | null;
-};
+export type LogQuery = { 
+/**
+ * Records at this level or above.
+ */
+min_level: LogLevel | null, 
+/**
+ * Records at exactly one of these levels. Combined with `min_level` by
+ * AND, which lets the viewer offer both a threshold and a set of
+ * checkboxes without them contradicting each other.
+ */
+levels: Array<LogLevel> | null, 
+/**
+ * Sources to include. A source matches if it equals an entry or is a
+ * dot-separated descendant of one, so filtering to `kernel` includes
+ * `kernel.ipc`.
+ */
+sources: Array<string> | null, 
+/**
+ * Inclusive RFC 3339 lower bound on `ts`.
+ */
+from_ts: string | null, 
+/**
+ * Inclusive RFC 3339 upper bound on `ts`.
+ */
+to_ts: string | null, 
+/**
+ * Case-insensitive substring searched across message, source, and the
+ * serialized fields.
+ */
+search: string | null, 
+/**
+ * Exact correlation ID, which is how the viewer answers "what did the
+ * kernel do for this command" (REQ-OBS-001.9).
+ */
+correlation_id: string | null, 
+/**
+ * Maximum number of records returned, newest first.
+ */
+limit: number | null, };

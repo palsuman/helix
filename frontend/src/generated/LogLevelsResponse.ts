@@ -5,4 +5,4 @@ import type { LevelConfig } from "./LevelConfig";
  * The level configuration after a change, returned by both `log.levels`
  * and `log.set_level` so the caller never has to re-read it.
  */
-export type LogLevelsResponse = { levels: LevelConfig };
+export type LogLevelsResponse = { levels: LevelConfig, };

@@ -4,4 +4,4 @@ import type { FileContent } from "./FileContent";
 /**
  * `fs.read` response.
  */
-export type FsReadResponse = { content: FileContent };
+export type FsReadResponse = { content: FileContent, };

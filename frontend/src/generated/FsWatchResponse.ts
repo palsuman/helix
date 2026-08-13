@@ -8,4 +8,4 @@ import type { RootReport } from "./RootReport";
  * can raise the REQ-FS-004.6 warning from the same round trip that started the
  * watch rather than polling for it afterwards.
  */
-export type FsWatchResponse = { report: RootReport };
+export type FsWatchResponse = { report: RootReport, };

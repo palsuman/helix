@@ -5,25 +5,21 @@ import type { LogLevel } from "./LogLevel";
  * `log.append` request: a frontend record joining the unified stream
  * (REQ-OBS-001.3).
  */
-export type LogAppendRequest = {
-  level: LogLevel;
-  /**
-   * Namespaced under `frontend.` by the kernel if it is not already, so a
-   * renderer cannot file its records under a kernel service's name.
-   */
-  source: string;
-  message: string;
-  fields: Record<string, unknown>;
-  /**
-   * Set when the frontend record belongs to an in-flight command, which
-   * is what links a UI action to the kernel work it caused
-   * (REQ-OBS-001.9).
-   */
-  correlation_id: string | null;
-  /**
-   * Client-side capture time. Ignored unless it parses as the kernel's
-   * fixed-width RFC 3339 format, so a skewed or hostile clock cannot
-   * reorder the viewer.
-   */
-  ts: string | null;
-};
+export type LogAppendRequest = { level: LogLevel, 
+/**
+ * Namespaced under `frontend.` by the kernel if it is not already, so a
+ * renderer cannot file its records under a kernel service's name.
+ */
+source: string, message: string, fields: Record<string, unknown>, 
+/**
+ * Set when the frontend record belongs to an in-flight command, which
+ * is what links a UI action to the kernel work it caused
+ * (REQ-OBS-001.9).
+ */
+correlation_id: string | null, 
+/**
+ * Client-side capture time. Ignored unless it parses as the kernel's
+ * fixed-width RFC 3339 format, so a skewed or hostile clock cannot
+ * reorder the viewer.
+ */
+ts: string | null, };

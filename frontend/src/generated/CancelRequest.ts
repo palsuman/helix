@@ -4,4 +4,4 @@
  * Frontend request to abort an in-flight command by correlation ID
  * (REQ-ARCH-003.2).
  */
-export type CancelRequest = { correlation_id: string };
+export type CancelRequest = { correlation_id: string, };

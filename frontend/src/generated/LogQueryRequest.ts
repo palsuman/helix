@@ -4,4 +4,4 @@ import type { LogQuery } from "./LogQuery";
 /**
  * `log.query` request: the viewer's filter (REQ-OBS-001.4).
  */
-export type LogQueryRequest = { query: LogQuery };
+export type LogQueryRequest = { query: LogQuery, };

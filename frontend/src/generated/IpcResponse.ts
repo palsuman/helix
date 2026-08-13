@@ -9,4 +9,4 @@ import type { AppError } from "./AppError";
  * id the frontend is no longer waiting on) is discarded rather than
  * misattributed — design document Property 4.
  */
-export type IpcResponse<T> = { correlation_id: string; result: T | null; error: AppError | null };
+export type IpcResponse<T> = { correlation_id: string, result: T | null, error: AppError | null, };

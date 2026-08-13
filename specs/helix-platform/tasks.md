@@ -147,7 +147,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open a two-root workspace, add a third over IPC, verify merged settings, remove one and verify cleanup_
     - _Requirements: REQ-FS-001_
 
-  - [ ] 1.9 Implement monorepo project graph
+  - [x] 1.9 Implement monorepo project graph
     - Detect tooling: Nx, Turborepo, Lerna, pnpm/npm/yarn workspaces, Cargo workspaces, Go workspaces, Maven multi-module, Gradle multi-project, .NET solutions
     - Extract the project graph: projects, root paths, inter-project dependencies
     - Queryable service API: which project owns a path, what depends on a project, what a project depends on
@@ -159,7 +159,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open an Nx monorepo, list projects and dependencies, change a library file and see the affected app list_
     - _Requirements: REQ-FS-002_
 
-  - [ ] 1.10 Implement state persistence and write-ahead log
+  - [x] 1.10 Implement state persistence and write-ahead log
     - WAL for unsaved editor buffers, coalesced per buffer on `files.walIntervalMs` (default 1000ms), which is the configured Recovery Point Objective from REQ-NFR-002
     - WAL for terminal and agent state at 5s intervals
     - Periodic snapshot every 5 minutes: open editors, cursor positions, layout, workspace state, terminal shell and CWD

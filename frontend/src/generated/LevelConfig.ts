@@ -10,14 +10,13 @@ import type { LogLevel } from "./LogLevel";
  * usable: a developer debugging the file system does not have to enumerate
  * its submodules.
  */
-export type LevelConfig = {
-  /**
-   * Applied to any source without a matching module override.
-   */
-  default_level: LogLevel;
-  /**
-   * Module prefix to level. `BTreeMap` so the serialized form (and the
-   * viewer's display of it) is deterministic.
-   */
-  modules: { [key in string]: LogLevel };
-};
+export type LevelConfig = { 
+/**
+ * Applied to any source without a matching module override.
+ */
+default_level: LogLevel, 
+/**
+ * Module prefix to level. `BTreeMap` so the serialized form (and the
+ * viewer's display of it) is deterministic.
+ */
+modules: { [key in string]: LogLevel }, };

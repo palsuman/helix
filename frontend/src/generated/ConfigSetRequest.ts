@@ -4,11 +4,4 @@ import type { ConfigScope } from "./ConfigScope";
 /**
  * `config.set` request.
  */
-export type ConfigSetRequest = {
-  scope: ConfigScope;
-  key: string;
-  value: unknown;
-  language: string | null;
-  workspace_key: string | null;
-  path: string | null;
-};
+export type ConfigSetRequest = { scope: ConfigScope, key: string, value: unknown, language: string | null, workspace_key: string | null, path: string | null, };

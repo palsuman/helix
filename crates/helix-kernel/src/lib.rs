@@ -9,6 +9,8 @@ pub mod config;
 pub mod fs;
 pub mod ipc;
 pub mod log;
+pub mod project_graph;
+pub mod state;
 pub mod stream;
 pub mod workspace;
 
@@ -19,7 +21,8 @@ use helix_core::container::ServiceContainer;
 use helix_fs::FileSystemService;
 use helix_ipc::IpcDispatcher;
 use helix_log::{LogLevel, Logger, log_info};
-use helix_workspace::WorkspaceService;
+use helix_state::StatePersistence;
+use helix_workspace::{ProjectGraphService, WorkspaceService};
 
 const KERNEL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -33,6 +36,8 @@ pub struct Kernel {
     pub config: Arc<ConfigService>,
     pub fs: Arc<FileSystemService>,
     pub workspace: Arc<WorkspaceService>,
+    pub project_graph: Arc<ProjectGraphService>,
+    pub state: Arc<StatePersistence>,
 }
 
 /// Build and start the kernel's service container, returning it alongside
@@ -75,12 +80,27 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     // system service. No workspace is open until a window asks for one.
     let workspace = workspace::build_service(config.clone(), fs.clone(), logger.clone());
 
+    // Graph work is scheduled only after a workspace event, and extraction is
+    // always background. Constructing the service here performs no repository
+    // I/O and therefore cannot delay kernel or workspace startup.
+    let (project_graph, project_graph_runtime) = project_graph::build_service(&workspace);
+
+    // State is outside every workspace and follows workspace lifecycle. Its
+    // flush interval is the configured editor recovery-point objective.
+    let state = state::build_service(&config);
+
     let mut dispatcher = ipc::build_dispatcher(KERNEL_VERSION);
     stream::register_commands(&mut dispatcher, &streaming);
     log::register_commands(&mut dispatcher, logger.clone());
     config::register_commands(&mut dispatcher, config.clone(), Some(workspace.clone()));
     fs::register_commands(&mut dispatcher, fs.clone());
     workspace::register_commands(&mut dispatcher, workspace.clone());
+    project_graph::register_commands(
+        &mut dispatcher,
+        project_graph.clone(),
+        workspace.clone(),
+        project_graph_runtime.scheduler.clone(),
+    );
     let dispatcher = Arc::new(dispatcher);
 
     let mut container = ServiceContainer::new();
@@ -95,6 +115,21 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         fs.clone(),
         logger.clone(),
     )?;
+    project_graph::register(
+        &mut container,
+        project_graph.clone(),
+        workspace.clone(),
+        fs.clone(),
+        logger.clone(),
+        project_graph_runtime,
+    )?;
+    state::register(
+        &mut container,
+        state.clone(),
+        workspace.clone(),
+        logger.clone(),
+        config.clone(),
+    )?;
     container.start_all().await?;
 
     Ok(Kernel {
@@ -105,6 +140,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         config,
         fs,
         workspace,
+        project_graph,
+        state,
     })
 }
 

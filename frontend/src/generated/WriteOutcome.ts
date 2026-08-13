@@ -5,18 +5,13 @@ import type { LineEnding } from "./LineEnding";
 /**
  * Result of a successful write.
  */
-export type WriteOutcome = {
-  path: string;
-  bytes_written: bigint;
-  /**
-   * Hash of what is now on disk. Pass it as the next `expected_hash`.
-   */
-  hash: string;
-  encoding: Encoding;
-  eol: LineEnding;
-  /**
-   * True when the chosen encoding could not represent every character and
-   * substitutions were made. The caller should say so.
-   */
-  lossy: boolean;
-};
+export type WriteOutcome = { path: string, bytes_written: bigint, 
+/**
+ * Hash of what is now on disk. Pass it as the next `expected_hash`.
+ */
+hash: string, encoding: Encoding, eol: LineEnding, 
+/**
+ * True when the chosen encoding could not represent every character and
+ * substitutions were made. The caller should say so.
+ */
+lossy: boolean, };

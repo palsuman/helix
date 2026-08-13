@@ -5,23 +5,20 @@ import type { ChangeKind } from "./ChangeKind";
  * One debounced change, as delivered to listeners and published on the
  * streaming channel.
  */
-export type FileChange = {
-  /**
-   * The watched root this change belongs to, so a multi-root workspace can
-   * route it without re-deriving the owner from the path.
-   */
-  root: string;
-  path: string;
-  kind: ChangeKind;
-  /**
-   * Best-effort. A deleted path cannot be stat'ed, so this is what was known
-   * when the event arrived, not a fresh check.
-   */
-  is_dir: boolean;
-  /**
-   * How many raw OS events collapsed into this one. Useful in the log when
-   * diagnosing an event storm, and it is the number that shows debouncing is
-   * doing something.
-   */
-  coalesced: number;
-};
+export type FileChange = { 
+/**
+ * The watched root this change belongs to, so a multi-root workspace can
+ * route it without re-deriving the owner from the path.
+ */
+root: string, path: string, kind: ChangeKind, 
+/**
+ * Best-effort. A deleted path cannot be stat'ed, so this is what was known
+ * when the event arrived, not a fresh check.
+ */
+is_dir: boolean, 
+/**
+ * How many raw OS events collapsed into this one. Useful in the log when
+ * diagnosing an event storm, and it is the number that shows debouncing is
+ * doing something.
+ */
+coalesced: number, };

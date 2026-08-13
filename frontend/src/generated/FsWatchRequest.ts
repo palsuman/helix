@@ -3,4 +3,4 @@
 /**
  * `fs.watch` request.
  */
-export type FsWatchRequest = { root: string };
+export type FsWatchRequest = { root: string, };

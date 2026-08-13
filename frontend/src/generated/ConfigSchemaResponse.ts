@@ -4,4 +4,4 @@
  * `config.schema` response: a JSON Schema document for the JSON settings
  * editor (REQ-CONFIG-001.5).
  */
-export type ConfigSchemaResponse = { schema: unknown };
+export type ConfigSchemaResponse = { schema: unknown, };

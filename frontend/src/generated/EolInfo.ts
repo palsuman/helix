@@ -4,4 +4,4 @@ import type { LineEnding } from "./LineEnding";
 /**
  * Per-file line ending report.
  */
-export type EolInfo = { style: LineEnding; lf_count: number; crlf_count: number };
+export type EolInfo = { style: LineEnding, lf_count: number, crlf_count: number, };

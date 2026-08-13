@@ -4,26 +4,22 @@ import type { LogLevel } from "./LogLevel";
 /**
  * One structured log entry.
  */
-export type LogRecord = {
-  /**
-   * RFC 3339 UTC with millisecond precision, e.g.
-   * `2026-08-07T10:30:00.123Z`. Fixed width, so a lexicographic
-   * comparison is also a chronological one, which is what lets the
-   * viewer's time-range filter work on the string without parsing.
-   */
-  ts: string;
-  level: LogLevel;
-  /**
-   * The emitting service or module, e.g. `lsp_host`, `kernel.ipc`,
-   * `frontend.app`. Dot-separated segments make per-module level
-   * configuration a prefix match.
-   */
-  source: string;
-  /**
-   * The IPC correlation ID in scope when the record was emitted
-   * (REQ-OBS-001.9). Populated automatically inside a command handler.
-   */
-  correlation_id: string | null;
-  message: string;
-  fields: Record<string, unknown>;
-};
+export type LogRecord = { 
+/**
+ * RFC 3339 UTC with millisecond precision, e.g.
+ * `2026-08-07T10:30:00.123Z`. Fixed width, so a lexicographic
+ * comparison is also a chronological one, which is what lets the
+ * viewer's time-range filter work on the string without parsing.
+ */
+ts: string, level: LogLevel, 
+/**
+ * The emitting service or module, e.g. `lsp_host`, `kernel.ipc`,
+ * `frontend.app`. Dot-separated segments make per-module level
+ * configuration a prefix match.
+ */
+source: string, 
+/**
+ * The IPC correlation ID in scope when the record was emitted
+ * (REQ-OBS-001.9). Populated automatically inside a command handler.
+ */
+correlation_id: string | null, message: string, fields: Record<string, unknown>, };

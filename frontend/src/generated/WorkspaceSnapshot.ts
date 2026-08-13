@@ -7,59 +7,55 @@ import type { WorkspaceRoot } from "./WorkspaceRoot";
 /**
  * Everything a window needs to know about an open workspace.
  */
-export type WorkspaceSnapshot = {
-  /**
-   * State and cache key (REQ-NFR-002.11). Stable for the life of this open
-   * workspace.
-   */
-  key: string;
-  /**
-   * The document's `id`, once it has one.
-   */
-  id: string | null;
-  name: string;
-  /**
-   * Roots in workspace order; the first is primary.
-   */
-  roots: Array<WorkspaceRoot>;
-  /**
-   * Where `.helix/workspace.json` is, or would be.
-   */
-  file_path: string;
-  /**
-   * Whether that file exists yet.
-   */
-  has_file: boolean;
-  /**
-   * Validation findings from the document (REQ-FS-001 failure modes).
-   */
-  issues: Array<WorkspaceIssue>;
-  /**
-   * Set when the document would not parse. The workspace opened anyway, on
-   * the roots that were requested.
-   */
-  parse_error: ConfigParseError | null;
-  /**
-   * Invalid workspace/folder settings files, retaining their last valid layer.
-   */
-  settings_parse_errors: Array<ConfigParseError>;
-  /**
-   * Per-setting schema and scope problems in workspace/folder layers.
-   */
-  settings_issues: Array<SettingIssue>;
-  /**
-   * Set when the last write of the document failed, e.g. a read-only
-   * checkout. The change is in effect for this session regardless.
-   */
-  persist_error: string | null;
-  max_roots: number;
-  /**
-   * True at the cap, which is the point the UI warns at (REQ-FS-001.5).
-   */
-  at_root_limit: boolean;
-  /**
-   * How many holders (windows) share this workspace.
-   */
-  holders: number;
-  opened_ms: bigint;
-};
+export type WorkspaceSnapshot = { 
+/**
+ * State and cache key (REQ-NFR-002.11). Stable for the life of this open
+ * workspace.
+ */
+key: string, 
+/**
+ * The document's `id`, once it has one.
+ */
+id: string | null, name: string, 
+/**
+ * Roots in workspace order; the first is primary.
+ */
+roots: Array<WorkspaceRoot>, 
+/**
+ * Where `.helix/workspace.json` is, or would be.
+ */
+file_path: string, 
+/**
+ * Whether that file exists yet.
+ */
+has_file: boolean, 
+/**
+ * Validation findings from the document (REQ-FS-001 failure modes).
+ */
+issues: Array<WorkspaceIssue>, 
+/**
+ * Set when the document would not parse. The workspace opened anyway, on
+ * the roots that were requested.
+ */
+parse_error: ConfigParseError | null, 
+/**
+ * Invalid workspace/folder settings files, retaining their last valid layer.
+ */
+settings_parse_errors: Array<ConfigParseError>, 
+/**
+ * Per-setting schema and scope problems in workspace/folder layers.
+ */
+settings_issues: Array<SettingIssue>, 
+/**
+ * Set when the last write of the document failed, e.g. a read-only
+ * checkout. The change is in effect for this session regardless.
+ */
+persist_error: string | null, max_roots: number, 
+/**
+ * True at the cap, which is the point the UI warns at (REQ-FS-001.5).
+ */
+at_root_limit: boolean, 
+/**
+ * How many holders (windows) share this workspace.
+ */
+holders: number, opened_ms: bigint, };

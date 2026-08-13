@@ -4,10 +4,4 @@ import type { ConfigScope } from "./ConfigScope";
 /**
  * `config.reset` request (REQ-CONFIG-001.9).
  */
-export type ConfigResetRequest = {
-  scope: ConfigScope;
-  key: string;
-  language: string | null;
-  workspace_key: string | null;
-  path: string | null;
-};
+export type ConfigResetRequest = { scope: ConfigScope, key: string, language: string | null, workspace_key: string | null, path: string | null, };

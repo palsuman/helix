@@ -6,4 +6,4 @@ import type { SettingValue } from "./SettingValue";
  * declared nor set anywhere, which the frontend renders as "no such setting"
  * rather than as a null value.
  */
-export type ConfigGetResponse = { setting: SettingValue | null };
+export type ConfigGetResponse = { setting: SettingValue | null, };

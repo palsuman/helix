@@ -8,19 +8,16 @@
  * reconnecting client resume from where it left off and lets any client
  * detect a gap as evidence of a drop (REQ-ARCH-003.10).
  */
-export type StreamEnvelope = {
-  channel: string;
-  /**
-   * Links the message to the IPC command that started the stream, when
-   * there was one. Absent for ambient channels (health, diagnostics).
-   */
-  correlation_id: string | null;
-  /**
-   * Exposed to TypeScript as `number` rather than `bigint`: the wire
-   * format is JSON, so `JSON.parse` yields a `number` regardless of the
-   * Rust width. `Number.MAX_SAFE_INTEGER` is 2^53, which at the 100Hz
-   * cadence of the busiest channel is roughly 2.8 million years.
-   */
-  sequence: number;
-  payload: unknown;
-};
+export type StreamEnvelope = { channel: string, 
+/**
+ * Links the message to the IPC command that started the stream, when
+ * there was one. Absent for ambient channels (health, diagnostics).
+ */
+correlation_id: string | null, 
+/**
+ * Exposed to TypeScript as `number` rather than `bigint`: the wire
+ * format is JSON, so `JSON.parse` yields a `number` regardless of the
+ * Rust width. `Number.MAX_SAFE_INTEGER` is 2^53, which at the 100Hz
+ * cadence of the busiest channel is roughly 2.8 million years.
+ */
+sequence: number, payload: unknown, };

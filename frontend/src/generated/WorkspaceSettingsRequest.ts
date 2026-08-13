@@ -4,20 +4,18 @@
  * `workspace.settings` request: the effective settings for a path, honouring
  * per-folder overrides (REQ-FS-001.3).
  */
-export type WorkspaceSettingsRequest = {
-  key: string;
-  /**
-   * A path inside the workspace. Omitted asks for the workspace-level view,
-   * with no folder layer applied.
-   */
-  path: string | null;
-  /**
-   * A single dotted setting key, when the caller wants one value rather than
-   * the whole tree.
-   */
-  setting: string | null;
-  /**
-   * Language id whose overrides should participate in resolution.
-   */
-  language: string | null;
-};
+export type WorkspaceSettingsRequest = { key: string, 
+/**
+ * A path inside the workspace. Omitted asks for the workspace-level view,
+ * with no folder layer applied.
+ */
+path: string | null, 
+/**
+ * A single dotted setting key, when the caller wants one value rather than
+ * the whole tree.
+ */
+setting: string | null, 
+/**
+ * Language id whose overrides should participate in resolution.
+ */
+language: string | null, };

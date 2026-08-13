@@ -6,29 +6,22 @@ import type { EolInfo } from "./EolInfo";
  * A file's contents and everything the editor needs to save it back
  * faithfully.
  */
-export type FileContent = {
-  path: string;
-  /**
-   * LF-normalised text. `None` for a binary file.
-   */
-  text: string | null;
-  encoding: Encoding;
-  /**
-   * True when a byte-order mark declared the encoding rather than a
-   * heuristic guessing it, so the UI knows not to offer to change it.
-   */
-  encoding_from_bom: boolean;
-  eol: EolInfo;
-  binary: boolean;
-  /**
-   * xxHash of the bytes on disk. The value to pass back as
-   * `expected_hash` on save, and the value the index compares against.
-   */
-  hash: string;
-  /**
-   * Size on disk in bytes, before decoding.
-   */
-  size: bigint;
-  readonly: boolean;
-  modified_ms: bigint | null;
-};
+export type FileContent = { path: string, 
+/**
+ * LF-normalised text. `None` for a binary file.
+ */
+text: string | null, encoding: Encoding, 
+/**
+ * True when a byte-order mark declared the encoding rather than a
+ * heuristic guessing it, so the UI knows not to offer to change it.
+ */
+encoding_from_bom: boolean, eol: EolInfo, binary: boolean, 
+/**
+ * xxHash of the bytes on disk. The value to pass back as
+ * `expected_hash` on save, and the value the index compares against.
+ */
+hash: string, 
+/**
+ * Size on disk in bytes, before decoding.
+ */
+size: bigint, readonly: boolean, modified_ms: bigint | null, };

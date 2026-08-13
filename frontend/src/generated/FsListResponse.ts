@@ -4,4 +4,4 @@ import type { Listing } from "./Listing";
 /**
  * `fs.list` response.
  */
-export type FsListResponse = { listing: Listing };
+export type FsListResponse = { listing: Listing, };

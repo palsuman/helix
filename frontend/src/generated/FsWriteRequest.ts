@@ -10,20 +10,17 @@ import type { LineEnding } from "./LineEnding";
  * disk in the meantime fails the write instead of silently losing the external
  * change (REQ-FS-004.3).
  */
-export type FsWriteRequest = {
-  path: string;
-  /**
-   * LF-normalised text, as the editor holds it.
-   */
-  text: string;
-  /**
-   * Absent keeps the file's existing encoding, or `files.encoding` for a new
-   * file.
-   */
-  encoding: Encoding | null;
-  /**
-   * Absent keeps the file's existing line ending style.
-   */
-  eol: LineEnding | null;
-  expected_hash: string | null;
-};
+export type FsWriteRequest = { path: string, 
+/**
+ * LF-normalised text, as the editor holds it.
+ */
+text: string, 
+/**
+ * Absent keeps the file's existing encoding, or `files.encoding` for a new
+ * file.
+ */
+encoding: Encoding | null, 
+/**
+ * Absent keeps the file's existing line ending style.
+ */
+eol: LineEnding | null, expected_hash: string | null, };

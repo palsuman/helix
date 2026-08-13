@@ -3,12 +3,8 @@
 /**
  * `config.list` request.
  */
-export type ConfigListRequest = {
-  /**
-   * Dotted-key prefix, e.g. `editor.` to list one category.
-   */
-  prefix: string | null;
-  language: string | null;
-  workspace_key: string | null;
-  path: string | null;
-};
+export type ConfigListRequest = { 
+/**
+ * Dotted-key prefix, e.g. `editor.` to list one category.
+ */
+prefix: string | null, language: string | null, workspace_key: string | null, path: string | null, };

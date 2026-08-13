@@ -3,4 +3,4 @@
 /**
  * `workspace.close` request.
  */
-export type WorkspaceCloseRequest = { key: string };
+export type WorkspaceCloseRequest = { key: string, };

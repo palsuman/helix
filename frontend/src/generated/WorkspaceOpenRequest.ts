@@ -4,11 +4,9 @@
  * `workspace.open` request. The first root is the primary: the one whose
  * `.helix/workspace.json` and workspace settings apply.
  */
-export type WorkspaceOpenRequest = {
-  roots: Array<string>;
-  /**
-   * Display name for a workspace with no document yet. Ignored when the
-   * document names itself.
-   */
-  name: string | null;
-};
+export type WorkspaceOpenRequest = { roots: Array<string>, 
+/**
+ * Display name for a workspace with no document yet. Ignored when the
+ * document names itself.
+ */
+name: string | null, };

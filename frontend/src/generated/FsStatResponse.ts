@@ -4,4 +4,4 @@ import type { FileEntry } from "./FileEntry";
 /**
  * `fs.stat` response.
  */
-export type FsStatResponse = { entry: FileEntry };
+export type FsStatResponse = { entry: FileEntry, };

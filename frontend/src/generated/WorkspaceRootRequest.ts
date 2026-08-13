@@ -3,14 +3,12 @@
 /**
  * `workspace.addRoot` and `workspace.removeRoot` request.
  */
-export type WorkspaceRootRequest = {
-  /**
-   * Workspace key, from a previous `workspace.open`.
-   */
-  key: string;
-  path: string;
-  /**
-   * Display name for the new root. Only meaningful for `addRoot`.
-   */
-  name: string | null;
-};
+export type WorkspaceRootRequest = { 
+/**
+ * Workspace key, from a previous `workspace.open`.
+ */
+key: string, path: string, 
+/**
+ * Display name for the new root. Only meaningful for `addRoot`.
+ */
+name: string | null, };

@@ -12,13 +12,9 @@ import type { SettingValue } from "./SettingValue";
  * rendering (REQ-CONFIG-001 failure modes), not fetch them separately and
  * risk showing a stale pairing.
  */
-export type ConfigListResponse = {
-  settings: Array<SettingValue>;
-  parse_errors: Array<ConfigParseError>;
-  issues: Array<SettingIssue>;
-  /**
-   * Layers that have a file behind them, lowest precedence first, so the
-   * scope selector only offers scopes that can actually be written.
-   */
-  scopes: Array<ConfigScopeInfo>;
-};
+export type ConfigListResponse = { settings: Array<SettingValue>, parse_errors: Array<ConfigParseError>, issues: Array<SettingIssue>, 
+/**
+ * Layers that have a file behind them, lowest precedence first, so the
+ * scope selector only offers scopes that can actually be written.
+ */
+scopes: Array<ConfigScopeInfo>, };

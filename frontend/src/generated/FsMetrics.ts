@@ -4,21 +4,13 @@ import type { WatchStats } from "./WatchStats";
 /**
  * Point-in-time counters, surfaced through the kernel's health model.
  */
-export type FsMetrics = {
-  reads: bigint;
-  read_errors: bigint;
-  writes: bigint;
-  write_errors: bigint;
-  /**
-   * Writes refused because disk had changed under the caller.
-   */
-  conflicts: bigint;
-  bytes_read: bigint;
-  bytes_written: bigint;
-  listings: bigint;
-  /**
-   * Watcher metrics, published to health monitoring together with these
-   * (REQ-FS-004.8).
-   */
-  watch: WatchStats;
-};
+export type FsMetrics = { reads: bigint, read_errors: bigint, writes: bigint, write_errors: bigint, 
+/**
+ * Writes refused because disk had changed under the caller.
+ */
+conflicts: bigint, bytes_read: bigint, bytes_written: bigint, listings: bigint, 
+/**
+ * Watcher metrics, published to health monitoring together with these
+ * (REQ-FS-004.8).
+ */
+watch: WatchStats, };

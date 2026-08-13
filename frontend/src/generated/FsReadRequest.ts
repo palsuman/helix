@@ -3,4 +3,4 @@
 /**
  * `fs.read` request.
  */
-export type FsReadRequest = { path: string };
+export type FsReadRequest = { path: string, };

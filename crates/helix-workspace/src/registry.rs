@@ -91,6 +91,20 @@ impl WorkspaceRegistry {
             .insert(TypeId::of::<T>(), value as Arc<dyn Any + Send + Sync>);
     }
 
+    /// Publish only when a workspace still has at least one holder. The check
+    /// and insert share the registry write lock, preventing a background task
+    /// from recreating a scope after its last window closed.
+    pub fn publish_if_active<T: Any + Send + Sync>(&self, key: &str, value: Arc<T>) -> bool {
+        let mut entries = self.entries.write().unwrap();
+        let Some(entry) = entries.get_mut(key).filter(|entry| entry.refs > 0) else {
+            return false;
+        };
+        entry
+            .resources
+            .insert(TypeId::of::<T>(), value as Arc<dyn Any + Send + Sync>);
+        true
+    }
+
     /// Resolve a workspace-scoped resource.
     pub fn resolve<T: Any + Send + Sync>(&self, key: &str) -> Option<Arc<T>> {
         self.entries
@@ -272,6 +286,16 @@ mod tests {
             1,
             "the registry must not keep a workspace's resources alive after its last window"
         );
+    }
+
+    #[test]
+    fn a_late_background_publish_cannot_recreate_a_closed_scope() {
+        let registry = WorkspaceRegistry::new();
+        let lease = registry.acquire("ws1");
+        drop(lease);
+
+        assert!(!registry.publish_if_active("ws1", Arc::new(SearchIndex(9))));
+        assert!(registry.keys().is_empty());
     }
 
     #[test]

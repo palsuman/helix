@@ -4,12 +4,10 @@
  * One channel a client wants to receive, and where it wants to resume
  * from.
  */
-export type ChannelSubscription = {
-  channel: string;
-  /**
-   * Last sequence the client already has. `None` means "only messages
-   * published from now on"; `Some(n)` replays everything after `n` that
-   * is still buffered, which is how a reconnect closes its gap.
-   */
-  from_sequence: number | null;
-};
+export type ChannelSubscription = { channel: string, 
+/**
+ * Last sequence the client already has. `None` means "only messages
+ * published from now on"; `Some(n)` replays everything after `n` that
+ * is still buffered, which is how a reconnect closes its gap.
+ */
+from_sequence: number | null, };

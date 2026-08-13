@@ -6,13 +6,8 @@ import type { IssueKind } from "./IssueKind";
  * A single problem with a single key, carrying enough detail for the
  * settings editor to point at it.
  */
-export type SettingIssue = {
-  key: string;
-  scope: ConfigScope;
-  kind: IssueKind;
-  message: string;
-  /**
-   * Set when the issue applies to a language-specific override.
-   */
-  language: string | null;
-};
+export type SettingIssue = { key: string, scope: ConfigScope, kind: IssueKind, message: string, 
+/**
+ * Set when the issue applies to a language-specific override.
+ */
+language: string | null, };

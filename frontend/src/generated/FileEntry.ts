@@ -3,28 +3,23 @@
 /**
  * One filesystem entry with the stat information the explorer needs.
  */
-export type FileEntry = {
-  /**
-   * Absolute path.
-   */
-  path: string;
-  /**
-   * Path relative to the listed root, with forward slashes on every
-   * platform so the frontend can treat it as an opaque, comparable key.
-   */
-  relative_path: string;
-  name: string;
-  is_dir: boolean;
-  is_symlink: boolean;
-  /**
-   * Size in bytes. Zero for directories, whose on-disk size is a property
-   * of the filesystem rather than of the project.
-   */
-  size: bigint;
-  /**
-   * Last modification time, milliseconds since the Unix epoch. `None` when
-   * the filesystem does not report one.
-   */
-  modified_ms: bigint | null;
-  readonly: boolean;
-};
+export type FileEntry = { 
+/**
+ * Absolute path.
+ */
+path: string, 
+/**
+ * Path relative to the listed root, with forward slashes on every
+ * platform so the frontend can treat it as an opaque, comparable key.
+ */
+relative_path: string, name: string, is_dir: boolean, is_symlink: boolean, 
+/**
+ * Size in bytes. Zero for directories, whose on-disk size is a property
+ * of the filesystem rather than of the project.
+ */
+size: bigint, 
+/**
+ * Last modification time, milliseconds since the Unix epoch. `None` when
+ * the filesystem does not report one.
+ */
+modified_ms: bigint | null, readonly: boolean, };

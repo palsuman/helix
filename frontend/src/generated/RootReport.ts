@@ -4,29 +4,24 @@ import type { WatchMode } from "./WatchMode";
 /**
  * What watching one root turned out to involve.
  */
-export type RootReport = {
-  root: string;
-  mode: WatchMode;
-  /**
-   * Directories registered with the OS. This, not the file count, is what
-   * the budget measures, because a recursive watch costs one handle per
-   * directory.
-   */
-  watched_paths: number;
-  files_seen: number;
-  over_budget: boolean;
-  /**
-   * Glob patterns that would bring the root under budget, derived from the
-   * directories actually responsible (REQ-FS-004.6).
-   */
-  suggested_exclusions: Array<string>;
-  /**
-   * Measured filesystem latency, when the probe could run.
-   */
-  probe_latency_ms: bigint | null;
-  /**
-   * Set when the root fell back to polling after the OS refused a native
-   * watch, carrying the reason so the user can act on it.
-   */
-  degraded_reason: string | null;
-};
+export type RootReport = { root: string, mode: WatchMode, 
+/**
+ * Directories registered with the OS. This, not the file count, is what
+ * the budget measures, because a recursive watch costs one handle per
+ * directory.
+ */
+watched_paths: number, files_seen: number, over_budget: boolean, 
+/**
+ * Glob patterns that would bring the root under budget, derived from the
+ * directories actually responsible (REQ-FS-004.6).
+ */
+suggested_exclusions: Array<string>, 
+/**
+ * Measured filesystem latency, when the probe could run.
+ */
+probe_latency_ms: bigint | null, 
+/**
+ * Set when the root fell back to polling after the OS refused a native
+ * watch, carrying the reason so the user can act on it.
+ */
+degraded_reason: string | null, };

@@ -4,4 +4,4 @@ import type { WorkspaceSnapshot } from "./WorkspaceSnapshot";
 /**
  * Every open workspace.
  */
-export type WorkspaceListResponse = { workspaces: Array<WorkspaceSnapshot> };
+export type WorkspaceListResponse = { workspaces: Array<WorkspaceSnapshot>, };

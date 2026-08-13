@@ -3,4 +3,4 @@
 /**
  * `fs.unwatch` response.
  */
-export type FsUnwatchResponse = { stopped: boolean };
+export type FsUnwatchResponse = { stopped: boolean, };

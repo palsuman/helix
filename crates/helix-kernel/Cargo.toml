@@ -22,10 +22,11 @@ helix-fs = { path = "../helix-fs" }
 helix-ipc = { path = "../helix-ipc" }
 helix-log = { path = "../helix-log" }
 helix-stream = { path = "../helix-stream" }
+helix-state = { path = "../helix-state" }
 helix-workspace = { path = "../helix-workspace" }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.145"
-tokio = { version = "=1.53.1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util"] }
+tokio = { version = "=1.53.1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "process"] }
 
 [dev-dependencies]
 # The scratch-directory helper, so the file system tests use the same type as

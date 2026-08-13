@@ -11,8 +11,11 @@ helix-config = { path = "../helix-config" }
 helix-core = { path = "../helix-core" }
 helix-fs = { path = "../helix-fs" }
 helix-log = { path = "../helix-log" }
+glob = "=0.3.4"
+quick-xml = "=0.41.0"
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.145"
+toml = "=0.9.12"
 ts-rs = "=12.0.1"
 # The same hash the file system service uses for content, reused here for the
 # workspace key. One hash function in the workspace means a key computed in two

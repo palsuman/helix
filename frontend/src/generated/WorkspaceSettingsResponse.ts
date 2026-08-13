@@ -3,15 +3,13 @@
 /**
  * `workspace.settings` response.
  */
-export type WorkspaceSettingsResponse = {
-  /**
-   * The root that owned the requested path, so the settings editor can say
-   * which folder's settings are in play.
-   */
-  root: string | null;
-  settings: unknown;
-  /**
-   * Present when `setting` was given.
-   */
-  value: unknown | null;
-};
+export type WorkspaceSettingsResponse = { 
+/**
+ * The root that owned the requested path, so the settings editor can say
+ * which folder's settings are in play.
+ */
+root: string | null, settings: unknown, 
+/**
+ * Present when `setting` was given.
+ */
+value: unknown | null, };

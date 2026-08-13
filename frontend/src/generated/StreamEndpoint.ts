@@ -5,19 +5,14 @@
  * frontend over IPC because the port is chosen at random on launch
  * (Task 1.4).
  */
-export type StreamEndpoint = {
-  /**
-   * Fully-formed `ws://127.0.0.1:<port>/stream?token=…` URL.
-   */
-  url: string;
-  port: number;
-  /**
-   * Per-launch bearer token. The server binds to loopback, which any
-   * local process can reach, so the token is what distinguishes this
-   * application's frontend from anything else on the machine.
-   */
-  token: string;
-  heartbeat_interval_ms: number;
-  missed_heartbeat_limit: number;
-  default_buffer_depth: number;
-};
+export type StreamEndpoint = { 
+/**
+ * Fully-formed `ws://127.0.0.1:<port>/stream?token=…` URL.
+ */
+url: string, port: number, 
+/**
+ * Per-launch bearer token. The server binds to loopback, which any
+ * local process can reach, so the token is what distinguishes this
+ * application's frontend from anything else on the machine.
+ */
+token: string, heartbeat_interval_ms: number, missed_heartbeat_limit: number, default_buffer_depth: number, };

@@ -1399,6 +1399,7 @@ dependencies = [
  "helix-fs",
  "helix-ipc",
  "helix-log",
+ "helix-state",
  "helix-stream",
  "helix-workspace",
  "serde",
@@ -1415,6 +1416,18 @@ dependencies = [
  "serde_json",
  "tokio",
  "ts-rs",
+]
+
+[[package]]
+name = "helix-state"
+version = "0.1.0"
+dependencies = [
+ "crc32fast",
+ "helix-fs",
+ "helix-workspace",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -1435,6 +1448,7 @@ name = "helix-supervisor"
 version = "0.1.0"
 dependencies = [
  "helix-ipc",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-build",
@@ -1446,12 +1460,15 @@ dependencies = [
 name = "helix-workspace"
 version = "0.1.0"
 dependencies = [
+ "glob",
  "helix-config",
  "helix-core",
  "helix-fs",
  "helix-log",
+ "quick-xml",
  "serde",
  "serde_json",
+ "toml 0.9.12+spec-1.1.0",
  "ts-rs",
  "xxhash-rust",
 ]

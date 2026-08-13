@@ -5,5 +5,4 @@ import type { StreamEnvelope } from "./StreamEnvelope";
 /**
  * Everything that travels over the socket.
  */
-export type StreamFrame =
-  ({ kind: "data" } & StreamEnvelope) | ({ kind: "control" } & StreamControl);
+export type StreamFrame = { "kind": "data" } & StreamEnvelope | { "kind": "control" } & StreamControl;

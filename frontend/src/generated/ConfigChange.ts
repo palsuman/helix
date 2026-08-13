@@ -8,30 +8,28 @@ import type { SettingIssue } from "./SettingIssue";
  * A change to the resolved configuration, delivered to listeners and
  * published on the streaming channel.
  */
-export type ConfigChange = {
-  /**
-   * Which layer changed.
-   */
-  scope: ConfigScope;
-  origin: ChangeOrigin;
-  /**
-   * Effective keys whose value changed, in the syntax a user would type:
-   * `editor.fontSize`, or `[typescript].editor.tabSize` for a
-   * language-specific override.
-   */
-  changed_keys: Array<string>;
-  /**
-   * The subset of `changed_keys` that cannot take effect until the
-   * application restarts (REQ-CONFIG-001.8).
-   */
-  requires_restart: Array<string>;
-  /**
-   * Set when the layer's file could not be parsed. The previous values
-   * remain in effect.
-   */
-  parse_error: ConfigParseError | null;
-  /**
-   * Per-key problems found while loading the layer.
-   */
-  issues: Array<SettingIssue>;
-};
+export type ConfigChange = { 
+/**
+ * Which layer changed.
+ */
+scope: ConfigScope, origin: ChangeOrigin, 
+/**
+ * Effective keys whose value changed, in the syntax a user would type:
+ * `editor.fontSize`, or `[typescript].editor.tabSize` for a
+ * language-specific override.
+ */
+changed_keys: Array<string>, 
+/**
+ * The subset of `changed_keys` that cannot take effect until the
+ * application restarts (REQ-CONFIG-001.8).
+ */
+requires_restart: Array<string>, 
+/**
+ * Set when the layer's file could not be parsed. The previous values
+ * remain in effect.
+ */
+parse_error: ConfigParseError | null, 
+/**
+ * Per-key problems found while loading the layer.
+ */
+issues: Array<SettingIssue>, };

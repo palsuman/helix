@@ -4,24 +4,21 @@ import type { FileEntry } from "./FileEntry";
 /**
  * The result of a walk.
  */
-export type Listing = {
-  entries: Array<FileEntry>;
-  /**
-   * Directories visited, including the root. This is the number the watcher
-   * budget is measured against (REQ-FS-004.6), because a recursive watch
-   * registers per directory, not per file.
-   */
-  directory_count: number;
-  file_count: number;
-  /**
-   * Entries that could not be stat'ed or directories that could not be
-   * read. Reported so the caller can say so rather than showing a
-   * mysteriously short list.
-   */
-  unreadable_paths: Array<string>;
-  /**
-   * True when the walk stopped at the configured depth limit, so the caller
-   * knows the listing is a window rather than the whole tree.
-   */
-  truncated_by_depth: boolean;
-};
+export type Listing = { entries: Array<FileEntry>, 
+/**
+ * Directories visited, including the root. This is the number the watcher
+ * budget is measured against (REQ-FS-004.6), because a recursive watch
+ * registers per directory, not per file.
+ */
+directory_count: number, file_count: number, 
+/**
+ * Entries that could not be stat'ed or directories that could not be
+ * read. Reported so the caller can say so rather than showing a
+ * mysteriously short list.
+ */
+unreadable_paths: Array<string>, 
+/**
+ * True when the walk stopped at the configured depth limit, so the caller
+ * knows the listing is a window rather than the whole tree.
+ */
+truncated_by_depth: boolean, };

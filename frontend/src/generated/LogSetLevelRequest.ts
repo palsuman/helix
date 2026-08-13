@@ -5,4 +5,4 @@ import type { LogLevel } from "./LogLevel";
  * `log.set_level` request. A `module` of `None` sets the default level;
  * a `level` of `None` clears the module override (REQ-OBS-001.2).
  */
-export type LogSetLevelRequest = { module: string | null; level: LogLevel | null };
+export type LogSetLevelRequest = { module: string | null, level: LogLevel | null, };

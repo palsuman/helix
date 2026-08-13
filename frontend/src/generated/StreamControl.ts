@@ -7,11 +7,4 @@ import type { ChannelSubscription } from "./ChannelSubscription";
  * `subscribe` and `unsubscribe` travel frontend → kernel; the rest travel
  * kernel → frontend.
  */
-export type StreamControl =
-  | { type: "subscribe"; channels: Array<ChannelSubscription> }
-  | { type: "unsubscribe"; channels: Array<string> }
-  | { type: "subscribed"; channels: Array<string> }
-  | { type: "unsubscribed"; channels: Array<string> }
-  | { type: "backpressure_warning"; channel: string; dropped: number; buffer_depth: number }
-  | { type: "heartbeat"; sequence: number }
-  | { type: "closing"; reason: string };
+export type StreamControl = { "type": "subscribe", channels: Array<ChannelSubscription>, } | { "type": "unsubscribe", channels: Array<string>, } | { "type": "subscribed", channels: Array<string>, } | { "type": "unsubscribed", channels: Array<string>, } | { "type": "backpressure_warning", channel: string, dropped: number, buffer_depth: number, } | { "type": "heartbeat", sequence: number, } | { "type": "closing", reason: string, };

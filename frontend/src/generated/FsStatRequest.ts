@@ -3,4 +3,4 @@
 /**
  * `fs.stat` request.
  */
-export type FsStatRequest = { path: string };
+export type FsStatRequest = { path: string, };

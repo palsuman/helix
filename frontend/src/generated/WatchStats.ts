@@ -4,33 +4,28 @@
  * Point-in-time watcher metrics, published to health monitoring
  * (REQ-FS-004.8, REQ-OBS-004.1).
  */
-export type WatchStats = {
-  roots: number;
-  watched_paths: number;
-  polling_roots: number;
-  over_budget_roots: number;
-  /**
-   * Raw OS events received.
-   */
-  events_seen: bigint;
-  /**
-   * Debounced changes delivered.
-   */
-  changes_emitted: bigint;
-  /**
-   * Raw events that cancelled out and were never reported.
-   */
-  dropped_as_noise: bigint;
-  /**
-   * Raw events over the most recently completed one-second window.
-   */
-  events_per_second: number;
-  /**
-   * Changes waiting out their debounce window right now.
-   */
-  pending: number;
-  /**
-   * Roots moved to polling after a native watcher error.
-   */
-  degraded_roots: number;
-};
+export type WatchStats = { roots: number, watched_paths: number, polling_roots: number, over_budget_roots: number, 
+/**
+ * Raw OS events received.
+ */
+events_seen: bigint, 
+/**
+ * Debounced changes delivered.
+ */
+changes_emitted: bigint, 
+/**
+ * Raw events that cancelled out and were never reported.
+ */
+dropped_as_noise: bigint, 
+/**
+ * Raw events over the most recently completed one-second window.
+ */
+events_per_second: number, 
+/**
+ * Changes waiting out their debounce window right now.
+ */
+pending: number, 
+/**
+ * Roots moved to polling after a native watcher error.
+ */
+degraded_roots: number, };

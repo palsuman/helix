@@ -4,4 +4,4 @@ import type { WriteOutcome } from "./WriteOutcome";
 /**
  * `fs.write` response.
  */
-export type FsWriteResponse = { outcome: WriteOutcome };
+export type FsWriteResponse = { outcome: WriteOutcome, };
