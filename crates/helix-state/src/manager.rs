@@ -5,8 +5,8 @@ use std::sync::{Arc, RwLock};
 use helix_workspace::WorkspaceSnapshot;
 
 use crate::{
-    AgentState, BufferState, PersistenceStatus, RecoveryReport, SessionSnapshot, StateError,
-    StateStore, StateStoreConfig, TerminalState, now_ms, workspace_state_directory,
+    AgentState, BufferState, LayoutState, PersistenceStatus, RecoveryReport, SessionSnapshot,
+    StateError, StateStore, StateStoreConfig, TerminalState, now_ms, workspace_state_directory,
 };
 
 struct WorkspaceState {
@@ -170,6 +170,33 @@ impl StatePersistence {
         Ok(())
     }
 
+    /// Return the kernel-authoritative layout projection for an open workspace.
+    pub fn layout(&self, key: &str) -> Result<LayoutState, StateError> {
+        self.workspaces
+            .read()
+            .unwrap()
+            .get(key)
+            .map(|state| state.session.layout.clone())
+            .ok_or_else(|| StateError::Invalid(format!("workspace '{key}' has no state store")))
+    }
+
+    /// Replace and immediately checkpoint layout state.
+    ///
+    /// Layout changes are already coalesced by the frontend's two-second
+    /// debounce. Checkpointing here makes an acknowledged update durable even
+    /// when the kernel exits before the normal five-minute snapshot cadence.
+    pub fn update_layout(&self, key: &str, layout: LayoutState) -> Result<(), StateError> {
+        let mut workspaces = self.workspaces.write().unwrap();
+        let state = workspaces
+            .get_mut(key)
+            .ok_or_else(|| StateError::Invalid(format!("workspace '{key}' has no state store")))?;
+        let mut session = state.session.clone();
+        session.layout = layout;
+        state.store.write_snapshot(&session, now_ms())?;
+        state.session = session;
+        Ok(())
+    }
+
     pub fn replace_session(&self, key: &str, session: SessionSnapshot) -> Result<(), StateError> {
         let mut workspaces = self.workspaces.write().unwrap();
         let state = workspaces
@@ -277,6 +304,31 @@ mod tests {
         let second = StatePersistence::new(StateStoreConfig::default());
         let recovered = second.open_at("key".into(), vec![root], state_dir).unwrap();
         assert_eq!(recovered.session.buffers[0].content, "unsaved");
+    }
+
+    #[test]
+    fn manager_replays_layout_across_kernel_instances() {
+        let dir = TempDir::new("state-manager-layout-restart");
+        let state_dir = dir.path().join("state/key");
+        let root = dir.mkdir("workspace");
+        let first = StatePersistence::new(StateStoreConfig::default());
+        first
+            .open_at("key".into(), vec![root.clone()], state_dir.clone())
+            .unwrap();
+        first
+            .update_layout(
+                "key",
+                LayoutState {
+                    value: serde_json::json!({ "primarySidebarSize": 320 }),
+                },
+            )
+            .unwrap();
+        drop(first);
+
+        let second = StatePersistence::new(StateStoreConfig::default());
+        let recovered = second.open_at("key".into(), vec![root], state_dir).unwrap();
+        assert_eq!(recovered.session.layout.value["primarySidebarSize"], 320);
+        assert_eq!(second.layout("key").unwrap(), recovered.session.layout);
     }
 
     #[test]

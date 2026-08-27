@@ -467,13 +467,23 @@ impl SchemaRegistry {
             )
             .range(1.0, 20.0),
             // ---- workbench ---------------------------------------------
+            // The four built-in themes from Task 2.5 (REQ-THEME-001.3). The
+            // frontend falls back to Helix Dark for any other value, so the
+            // enum documents rather than enforces — but a typo'd theme name
+            // should still be visible in settings validation.
             SettingSchema::new(
                 "workbench.colorTheme",
                 SettingKind::String,
                 json!("Helix Dark"),
                 "Appearance",
                 "Active colour theme.",
-            ),
+            )
+            .allowed(&[
+                "Helix Dark",
+                "Helix Light",
+                "High Contrast Dark",
+                "High Contrast Light",
+            ]),
             SettingSchema::new(
                 "workbench.iconTheme",
                 SettingKind::String,
@@ -605,6 +615,14 @@ impl SchemaRegistry {
                 "User interface locale. `auto` follows the operating system.",
             )
             .requires_restart()
+            .user_only(),
+            SettingSchema::new(
+                "window.restoreWindows",
+                SettingKind::Boolean,
+                json!(true),
+                "Window",
+                "Restore the previous window set when Helix launches.",
+            )
             .user_only(),
             SettingSchema::new(
                 "update.channel",

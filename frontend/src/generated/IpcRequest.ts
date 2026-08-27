@@ -7,4 +7,9 @@
  * both response matching and cancellation (REQ-ARCH-003.2). A
  * `timeout_ms` of `None` or `0` means "use the dispatcher default".
  */
-export type IpcRequest<T> = { command: string, correlation_id: string, payload: T, timeout_ms: number | null, };
+export type IpcRequest<T> = { command: string, correlation_id: string, payload: T, timeout_ms: number | null, 
+/**
+ * Host window that issued the command (REQ-ARCH-006.2). Absent for
+ * kernel-internal and test dispatches that are not window-scoped.
+ */
+window_id: string | null, };

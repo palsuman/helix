@@ -30,6 +30,8 @@ export const STREAM_CHANNELS = {
   logEntries: "log:entries",
   /** Workspace trust changes (Task 1.13, REQ-FS-005). */
   trustChanged: "trust:changed",
+  /** Window registry changes (Task 2.4, REQ-ARCH-006). */
+  windowChanged: "window:changed",
 } as const;
 
 export function streamEndpoint(

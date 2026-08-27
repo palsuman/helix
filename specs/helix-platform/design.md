@@ -42,7 +42,7 @@ The Supported line column records the architectural compatibility commitment. Th
 | HTTP client | reqwest | 0.x, exact pin required | Not selected (Task 8.1) | LLM API calls, marketplace |
 | Crypto | ring / ed25519-dalek | Single security-supported major | Not selected (Task 15.3) | Plugin signing, checksums |
 | Credential store | keyring / platform APIs | Single major per platform crate | Not selected (Task 1.12) | OS keychain access per platform |
-| Localization | ICU MessageFormat (fluent or icu4x) | One selected major | Not selected (Task 2.9) | Message catalogs, pluralization, formatting |
+| Localization | ICU MessageFormat (fluent or icu4x) | One selected major | Not selected (Task 2.10) | Message catalogs, pluralization, formatting |
 | Text segmentation | unicode-segmentation | 1.x | Not selected (Task 4.2) | Grapheme-cluster cursor movement |
 | Token counting | tiktoken-rs | 0.x, exact pin required | Not selected (Task 8.1) | Budget accounting for OpenAI-family models |
 | Metrics | hdrhistogram | 7.x | Not selected (Task 9.7) | Latency percentiles for telemetry and gates |
@@ -537,6 +537,30 @@ trait PluginHostApi {
 }
 ```
 
+### Workbench Shell Composition
+
+The production workbench uses fixed left/right visual semantics rather than exposing primary/secondary sidebars. Its shell geometry is symmetric:
+
+```
+┌────────────────────────────── title bar ──────────────────────────────┐
+│ left rail │ left card │ central card │ right card │ right rail       │
+│           │           ├──────────────┤            │                  │
+│           │           │ bottom card  │            │                  │
+└────────────────────────────── status bar ─────────────────────────────┘
+```
+
+- The left and right activity rails are permanent outer-frame regions. Collapsing an adjacent panel never removes its rail.
+- The left and right panels are independent registry-backed card slots, visible in the default layout and independently resizable and collapsible. Registered content may be swapped between sides without changing the rails' physical positions.
+- The central and bottom panels are also content-agnostic card slots. Task 2.2 supplies no editor tabs, tree view, terminal, chat surface, or feature-specific controls.
+- Every card uses the same radius, border, clipping, and gutter tokens. The title bar, both activity rails, status bar, outer frame, resize gutters, and all inter-card gaps use one frame-background token.
+- The renderer and accessibility tree use `left panel`, `right panel`, `left activity rail`, and `right activity rail`. The serialized `primarySidebar*` and `secondarySidebar*` names introduced by Task 2.1 remain compatibility keys only, avoiding a layout-state migration and preserving existing sessions.
+- At the 1024x600 minimum, both rails and the central card retain space. Side and bottom cards obey their minimum sizes and collapse behavior without overlapping or consuming the frame gutters.
+- Named layout profiles store non-recursive geometry snapshots inside the kernel-authoritative layout projection in the OS user-state directory. The active profile name is persisted with the snapshots; transient notices and zen-mode state are never persisted.
+- Profile actions expose stable `workbench.layoutProfile.*` command handlers for save, switch, rename, delete, and list. Task 2.8 contributes these handlers to the shared command registry and palette rather than duplicating profile logic there.
+- Zen mode is a transient shell presentation toggled by the `Ctrl+K Z` chord. It hides both rails, both side cards, the bottom card, title bar, status bar, and resize gutters without modifying the underlying layout, so exiting zen mode restores the exact prior geometry.
+
+→ REQ-ARCH-004, REQ-WB-001
+
 ### Theming System Interface
 
 ```
@@ -722,6 +746,10 @@ Three scopes, and every service declares which one it belongs to:
 Windows A and C above share workspace 1. Closing A must not stop workspace 1's language servers, so workspace-scoped services are reference-counted by window. This is the single most likely source of bugs in multi-window support, which is why scope is a declared property of every service rather than an emergent one.
 
 Settings changes fan out to every window because settings are global. Layout changes do not, because layout is window-scoped. A change to a workspace setting reaches only the windows bound to that workspace.
+
+The Tauri label is the window-scope identifier. The host stamps it onto forwarded IPC requests and each renderer uses its current native label for layout reads and writes; no secondary window falls back to the `main` projection. Session restoration carries the complete window record—workspace roots, geometry, monitor identity, and layout projection—while remapping only the boot window's old native label. Native focus events update the kernel registry so global notification routing follows the window the user actually focused.
+
+Task 2.4 provides the native move-to-window command boundary. Task 4.2 supplies real editor-tab ownership and invokes that boundary with the tab payload; until that integration exists, Task 2.4's editor-detach acceptance criterion remains open.
 
 **Validates:** REQ-ARCH-006, REQ-ARCH-002
 
@@ -1586,10 +1614,10 @@ The dashboard reads the same counters the CI benchmark gate measures, so a user 
 |----------|----------|
 | gitoxide vs git CLI for advanced workflows | gitoxide (`gix`) for reads and performance-critical paths, git CLI for writes and complex operations. REQ-GIT-001.9, Task 7.1 |
 | Who owns Tauri IPC and restarts a crashed kernel | The thin Helix Host is the Tauri Core process and supervisor. It owns windows/capabilities, forwards typed internal RPC, and restarts the separate authoritative kernel; it owns no IDE business logic. REQ-ARCH-003, REQ-ARCH-005, Tasks 1.3 and 1.11 |
-| One kernel per window, or one kernel for all windows | One kernel for all windows, with services declaring global, workspace, or window scope. REQ-ARCH-006, Task 2.3 |
+| One kernel per window, or one kernel for all windows | One kernel for all windows, with services declaring global, workspace, or window scope. REQ-ARCH-006, Task 2.4 |
 | Where the trust gate lives | In the kernel at process-launch points, centralized rather than per-subsystem. REQ-FS-005, Task 1.13 |
 | How many search engines | One. ripgrep plus a cache index in a single service consumed by all surfaces. REQ-SEARCH-001, Task 4.5 |
-| Icon delivery mechanism | Build-time SVG sprite with a generated ID union, not an icon font and not per-icon files. REQ-ICON-001, Task 2.5 |
+| Icon delivery mechanism | Build-time SVG sprite with a generated ID union, not an icon font and not per-icon files. REQ-ICON-001, Task 2.6 |
 | Which driver runs E2E against the packaged app | WebdriverIO with `@wdio/tauri-service` on its embedded provider. Driving `tauri-driver` directly covers only Windows and Linux, which cannot gate a tri-platform release. Task 3.3 |
 | Where transient session state lives | OS application-data directory keyed by workspace, not `.helix/`. REQ-NFR-002, Task 1.10 |
 | Mobile companion app | Out of scope. Helix is a desktop application (requirements Appendix C) |
@@ -1609,16 +1637,16 @@ REQ-REMOTE-001 is intentionally unimplemented: it constrains the communication l
 | Requirement | Design coverage | Tasks |
 |-------------|-----------------|-------|
 | REQ-ARCH-001 Authoritative kernel | Architecture, Property 1 | 1.1, 1.2 |
-| REQ-ARCH-002 Service container | Service Container Interface, Window Scoping, Property 9 | 1.2, 2.3, 3.1 |
+| REQ-ARCH-002 Service container | Service Container Interface, Window Scoping, Property 9 | 1.2, 2.4, 3.1 |
 | REQ-ARCH-003 IPC + WebSocket | Architecture, IPC Protocol, WebSocket Protocol, Properties 4-5 | 1.3, 1.4, 3.5, 18.3 |
-| REQ-ARCH-004 Frontend architecture | Architecture, Property 1 | 1.1, 2.1, 3.2, 9.4 |
+| REQ-ARCH-004 Frontend architecture | Architecture, Property 1 | 1.1, 2.1, 2.2, 3.2, 9.4 |
 | REQ-ARCH-005 Process supervision | Architecture, Process Supervision, Property 12 | 1.11, 13.1 |
-| REQ-ARCH-006 Window management | Window and Workspace Scoping, Property 14 | 2.3, 9.4, 14.3 |
-| REQ-WB-001 Workbench layout | Theming, Icon System | 2.1, 2.2 |
-| REQ-WB-002 Palette and quick open | Command Registry, Search Architecture | 2.7, 4.7 |
-| REQ-WB-003 Notifications | Error Handling principles | 2.6 |
+| REQ-ARCH-006 Window management | Window and Workspace Scoping, Property 14 | 2.4, 9.4, 14.3 |
+| REQ-WB-001 Workbench layout | Theming, Icon System | 2.1, 2.2, 2.3 |
+| REQ-WB-002 Palette and quick open | Command Registry, Search Architecture | 2.8, 4.7 |
+| REQ-WB-003 Notifications | Error Handling principles | 2.7 |
 | REQ-WB-004 Welcome and onboarding | — (UI only) | 14.1 |
-| REQ-WB-005 Localization | Localization Architecture, Property 15 | 2.9, 14.2 |
+| REQ-WB-005 Localization | Localization Architecture, Property 15 | 2.10, 14.2 |
 | REQ-ED-001 Core editor | Buffer and File Lifecycle | 4.1, 4.2, 4.4 |
 | REQ-ED-002 Workspace find/replace | Search Architecture, Property 2 | 4.6 |
 | REQ-ED-003 Diff editor | — (component) | 4.9 |
@@ -1647,7 +1675,7 @@ REQ-REMOTE-001 is intentionally unimplemented: it constrains the communication l
 | REQ-GIT-005 VCS abstraction | — (refactoring target) | 16.8 |
 | REQ-SEARCH-001 Search and index | Search Architecture, Property 16 | 4.5 |
 | REQ-CONFIG-001 Settings | Configuration Model | 1.6, 9.1 |
-| REQ-CONFIG-002 Keybindings | Keybinding Resolution | 2.8 |
+| REQ-CONFIG-002 Keybindings | Keybinding Resolution | 2.9 |
 | REQ-CLI-001 Command-line interface | Window Scoping (single-instance) | 14.3 |
 | REQ-AI-001 LLM providers | LLM Provider Interface, Circuit Breaker | 8.1 |
 | REQ-AI-002 Routing and budget | LLM Provider Interface | 8.2 |
@@ -1684,10 +1712,10 @@ REQ-REMOTE-001 is intentionally unimplemented: it constrains the communication l
 | REQ-NFR-003 Offline capability | — (standing obligation; verified per capability) | 9.6, 10.1, 10.5, 14.1, 15.2, 17.4 |
 | REQ-NFR-004 API stability | Plugin API Surface | 17.3, 17.7, 17.8 |
 | REQ-NFR-005 Accessibility | Icon System (a11y contract), Localization | 3.6, 9.2 |
-| REQ-THEME-001 Theme architecture | Theming System Interface | 2.4, 9.1 |
-| REQ-THEME-002 Syntax colors | Theming System Interface | 2.4 |
-| REQ-ICON-001 Product icons | Icon System, Property 11 | 2.5 |
-| REQ-ICON-002 File icon themes | Icon System, Property 11 | 2.5, 9.1 |
+| REQ-THEME-001 Theme architecture | Theming System Interface | 2.5, 9.1 |
+| REQ-THEME-002 Syntax colors | Theming System Interface | 2.5 |
+| REQ-ICON-001 Product icons | Icon System, Property 11 | 2.6 |
+| REQ-ICON-002 File icon themes | Icon System, Property 11 | 2.6, 9.1 |
 | REQ-OBS-001 Structured logging | Logging Pipeline, Log Record Model | 1.5 |
 | REQ-OBS-002 Crash reporting | Crash Reporting Pipeline | 13.1 |
 | REQ-OBS-003 Performance telemetry | Performance Telemetry, Metrics Model | 13.2 |

@@ -10,10 +10,17 @@ use helix_core::container::{
     HealthCheck, Lifetime, ManagedService, Service, ServiceContainer, ServiceContext, ServiceError,
     ServiceProbe,
 };
+use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
+use helix_ipc::IpcDispatcher;
 use helix_log::{Logger, log_info, log_warn};
+use helix_state::commands::{
+    LAYOUT_GET, LAYOUT_SET, LayoutGetRequest, LayoutGetResponse, LayoutSetRequest,
+    LayoutSetResponse, layout_projection_hash,
+};
 use helix_state::{
-    StatePersistence, StateStoreConfig, now_ms, prune_stale_state, state_root_directory,
+    LayoutState, StateError, StatePersistence, StateStoreConfig, now_ms, prune_stale_state,
+    state_root_directory,
 };
 use helix_workspace::{WorkspaceEvent, WorkspaceEventKind, WorkspaceListener, WorkspaceService};
 
@@ -34,6 +41,68 @@ pub fn build_service(config: &ConfigService) -> Arc<StatePersistence> {
         retention: Duration::from_secs(retention_days * 24 * 60 * 60),
         ..StateStoreConfig::default()
     }))
+}
+
+/// Register the workbench layout projection commands.
+pub fn register_commands(dispatcher: &mut IpcDispatcher, state: Arc<StatePersistence>) {
+    let read_state = state.clone();
+    dispatcher.register(LAYOUT_GET, move |request: LayoutGetRequest, _ctx| {
+        let state = read_state.clone();
+        async move {
+            let layout = tokio::task::spawn_blocking(move || state.layout(&request.workspace_key))
+                .await
+                .map_err(|error| {
+                    AppError::transient(
+                        "STATE_TASK_FAILED",
+                        format!("layout read task failed: {error}"),
+                    )
+                })?
+                .map_err(map_state_error)?;
+            Ok::<LayoutGetResponse, AppError>(LayoutGetResponse {
+                projection_hash: layout_projection_hash(&layout.value).map_err(|error| {
+                    AppError::permanent("STATE_LAYOUT_INVALID", error.to_string())
+                })?,
+                layout: layout.value,
+            })
+        }
+    });
+
+    dispatcher.register(LAYOUT_SET, move |request: LayoutSetRequest, _ctx| {
+        let state = state.clone();
+        async move {
+            let projection_hash = layout_projection_hash(&request.layout)
+                .map_err(|error| AppError::permanent("STATE_LAYOUT_INVALID", error.to_string()))?;
+            tokio::task::spawn_blocking(move || {
+                state.update_layout(
+                    &request.workspace_key,
+                    LayoutState {
+                        value: request.layout,
+                    },
+                )
+            })
+            .await
+            .map_err(|error| {
+                AppError::transient(
+                    "STATE_TASK_FAILED",
+                    format!("layout write task failed: {error}"),
+                )
+            })?
+            .map_err(map_state_error)?;
+            Ok::<LayoutSetResponse, AppError>(LayoutSetResponse {
+                persisted: true,
+                projection_hash,
+            })
+        }
+    });
+}
+
+fn map_state_error(error: StateError) -> AppError {
+    match error {
+        StateError::Invalid(message) => AppError::permanent("STATE_INVALID", message),
+        StateError::Io { .. } | StateError::Serialization(_) => {
+            AppError::transient("STATE_PERSIST_FAILED", error.to_string())
+        }
+    }
 }
 
 struct StateKernelService {
@@ -260,4 +329,52 @@ pub fn register(
             }) as Box<dyn ManagedService>)
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use helix_fs::testutil::TempDir;
+    use helix_ipc::IpcRequest;
+
+    #[tokio::test]
+    async fn layout_commands_round_trip_through_the_kernel_dispatcher() {
+        let dir = TempDir::new("kernel-layout-commands");
+        let state = Arc::new(StatePersistence::new(StateStoreConfig::default()));
+        state
+            .open_at(
+                "workspace".into(),
+                vec![dir.mkdir("workspace")],
+                dir.path().join("state/workspace"),
+            )
+            .unwrap();
+        let mut dispatcher = IpcDispatcher::new();
+        register_commands(&mut dispatcher, state);
+
+        let set = dispatcher
+            .dispatch(IpcRequest::new(
+                LAYOUT_SET,
+                "layout-set",
+                serde_json::json!({
+                    "workspace_key": "workspace",
+                    "layout": { "panelSize": 240 }
+                }),
+            ))
+            .await;
+        let set = set.result.unwrap();
+        assert_eq!(set["persisted"], true);
+        let set_hash = set["projection_hash"].as_str().unwrap();
+        assert!(!set_hash.is_empty());
+
+        let get = dispatcher
+            .dispatch(IpcRequest::new(
+                LAYOUT_GET,
+                "layout-get",
+                serde_json::json!({ "workspace_key": "workspace" }),
+            ))
+            .await;
+        let get = get.result.unwrap();
+        assert_eq!(get["layout"]["panelSize"], 240);
+        assert_eq!(get["projection_hash"], set_hash);
+    }
 }

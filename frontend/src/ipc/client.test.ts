@@ -67,6 +67,15 @@ describe("IpcClient", () => {
     });
   });
 
+  it("stamps the host window id onto kernel requests", async () => {
+    const kernel = fakeKernel((request) =>
+      ok(request.correlation_id, { echo: "hello", kernel_version: "0.1.0" }),
+    );
+    const client = new IpcClient({ invoke: kernel.invoke });
+    await ping(client, "hello", { windowId: "w-1" });
+    expect(kernel.requests[0].window_id).toBe("w-1");
+  });
+
   it("uses a per-call timeout override", async () => {
     const kernel = fakeKernel((request) => ok(request.correlation_id, { slept_ms: 5 }));
     const client = new IpcClient({ invoke: kernel.invoke });

@@ -84,6 +84,7 @@ pub struct CommandContext {
     command: String,
     timeout: Duration,
     cancel: CancelToken,
+    window_id: Option<String>,
 }
 
 impl CommandContext {
@@ -93,6 +94,11 @@ impl CommandContext {
 
     pub fn command(&self) -> &str {
         &self.command
+    }
+
+    /// Window that issued this command, when the Host stamped one.
+    pub fn window_id(&self) -> Option<&str> {
+        self.window_id.as_deref()
     }
 
     /// The effective timeout this invocation runs under.
@@ -226,6 +232,7 @@ impl IpcDispatcher {
             correlation_id,
             payload,
             timeout_ms,
+            window_id,
         } = request;
 
         self.counters.requests.fetch_add(1, Ordering::Relaxed);
@@ -268,6 +275,7 @@ impl IpcDispatcher {
             command: command.clone(),
             timeout,
             cancel: cancel.clone(),
+            window_id,
         };
 
         // A panicking handler must not unwind into the transport or take the
@@ -472,6 +480,18 @@ mod tests {
         assert_eq!(response.correlation_id, "corr-1");
         assert!(response.error.is_none());
         assert_eq!(response.result.unwrap()["message"], "hello");
+    }
+
+    #[tokio::test]
+    async fn dispatch_forwards_the_host_window_id_to_handlers() {
+        let mut dispatcher = IpcDispatcher::new();
+        dispatcher.register("who", |_req: serde_json::Value, ctx| async move {
+            Ok::<serde_json::Value, AppError>(serde_json::json!(ctx.window_id()))
+        });
+        let response = dispatcher
+            .dispatch(request("who", serde_json::json!({})).with_window_id("main"))
+            .await;
+        assert_eq!(response.result.unwrap(), "main");
     }
 
     #[tokio::test]

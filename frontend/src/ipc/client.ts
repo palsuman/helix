@@ -38,6 +38,8 @@ export interface InvokeOptions {
   timeoutMs?: number;
   /** Aborting the signal cancels the command kernel-side. */
   signal?: AbortSignal;
+  /** Host window that issued the command (REQ-ARCH-006). */
+  windowId?: string | null;
 }
 
 /** The subset of Tauri's `invoke` this client needs; swappable in tests. */
@@ -102,6 +104,7 @@ export class IpcClient {
       correlation_id: correlationId,
       payload,
       timeout_ms: timeoutMs,
+      window_id: options.windowId ?? null,
     };
 
     const onAbort = () => {

@@ -14,6 +14,7 @@ pub mod secrets;
 pub mod state;
 pub mod stream;
 pub mod trust;
+pub mod windows;
 pub mod workspace;
 
 use std::sync::Arc;
@@ -42,6 +43,7 @@ pub struct Kernel {
     pub state: Arc<StatePersistence>,
     pub secrets: Arc<helix_secrets::SecretService>,
     pub trust: Arc<helix_trust::TrustService>,
+    pub windows: Arc<windows::WindowManager>,
 }
 
 /// Build and start the kernel's service container, returning it alongside
@@ -99,6 +101,7 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     // Trust is mandatory. The only global bypass is the warning-gated
     // `trust everything` decision held in the trust store.
     let trust = trust::build_service(logger.clone());
+    let windows = windows::build_service(config.clone(), workspace.clone(), logger.clone());
 
     let mut dispatcher = ipc::build_dispatcher(KERNEL_VERSION);
     stream::register_commands(&mut dispatcher, &streaming);
@@ -120,6 +123,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         project_graph_runtime.scheduler.clone(),
         trust.clone(),
     );
+    state::register_commands(&mut dispatcher, state.clone());
+    windows::register_commands(&mut dispatcher, windows.clone());
     let dispatcher = Arc::new(dispatcher);
 
     let mut container = ServiceContainer::new();
@@ -151,6 +156,7 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     )?;
     secrets::register(&mut container, secrets.clone(), logger.clone())?;
     trust::register(&mut container, trust.clone(), logger.clone())?;
+    windows::register(&mut container, windows.clone(), logger.clone())?;
     container.start_all().await?;
 
     Ok(Kernel {
@@ -165,6 +171,7 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         state,
         secrets,
         trust,
+        windows,
     })
 }
 

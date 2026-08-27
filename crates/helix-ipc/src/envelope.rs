@@ -26,6 +26,10 @@ pub struct IpcRequest<T> {
     pub correlation_id: String,
     pub payload: T,
     pub timeout_ms: Option<u32>,
+    /// Host window that issued the command (REQ-ARCH-006.2). Absent for
+    /// kernel-internal and test dispatches that are not window-scoped.
+    #[serde(default)]
+    pub window_id: Option<String>,
 }
 
 impl<T> IpcRequest<T> {
@@ -35,7 +39,13 @@ impl<T> IpcRequest<T> {
             correlation_id: correlation_id.into(),
             payload,
             timeout_ms: None,
+            window_id: None,
         }
+    }
+
+    pub fn with_window_id(mut self, window_id: impl Into<String>) -> Self {
+        self.window_id = Some(window_id.into());
+        self
     }
 
     pub fn with_timeout_ms(mut self, timeout_ms: u32) -> Self {

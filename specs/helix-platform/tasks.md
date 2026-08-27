@@ -227,7 +227,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
 
   Goal: the frame a developer actually operates. Layout, windows, theme, icons, notifications, command palette, and keybindings, with localization and accessibility disciplines established before any feature UI is written.
 
-  - [ ] 2.1 Implement React workbench shell
+  - [x] 2.1 Implement React workbench shell
     - Activity bar with icon buttons, active indicator, and extension points
     - Primary sidebar container: resizable, collapsible, left or right
     - Secondary sidebar on the opposite side
@@ -244,7 +244,26 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: full layout renders and resizes; restart restores it; forcing a panel to throw shows its fallback while every other panel keeps working_
     - _Requirements: REQ-ARCH-004, REQ-WB-001_
 
-  - [ ] 2.2 Implement layout profiles and zen mode
+  - [x] 2.2 Implement IntelliJ-style card workbench layout
+    - Scope this task to shell geometry and visual styling only; do not add editor tabs, a project tree, file entries, chat or terminal interfaces, tool-specific headers or toolbars, or any feature behavior belonging to later tasks
+    - Replace all transport demos, debug controls, implementation notes, and task text in the production renderer; development diagnostics remain reachable only through tests or an explicit developer-only surface
+    - Compose the generic regions provided by 2.1 into a symmetric desktop frame: title bar, permanent left activity rail, left panel, central content panel, bottom panel, right panel, permanent right activity rail, and status bar; all panel slots remain registry-backed and content-agnostic
+    - Present the side regions exclusively as left panel and right panel in component APIs, landmarks, labels, tests, and documentation; the `primarySidebar*` and `secondarySidebar*` persisted fields from 2.1 may remain as backward-compatible storage keys but are not user-facing concepts
+    - Show both side panels in the default layout and keep them independently collapsible and resizable; each outer activity rail remains visible when its adjacent panel is collapsed, and swapping registered side content must not move or remove either rail
+    - Render each content panel as an inset IntelliJ-style card with a consistent corner radius, subtle border, distinct card surface, clipped contents, and layout-safe minimum dimensions
+    - Keep a consistent visible gutter between adjacent cards and between every card and the surrounding frame so panel surfaces never visually merge or touch
+    - Use exactly the same frame background color/token for the title bar, activity rails, status bar, outer window background, and every gutter between cards, creating continuous IntelliJ-style chrome around the panel cards
+    - Do not give the title bar, activity rails, status bar, or gutters separate base surface colors; later active and focus states may use text, icon, border, or accent treatments without breaking the shared frame background
+    - Preserve the generic placement, resizing, collapsing, persistence, and crash-isolation behavior from 2.1 without prescribing which future feature occupies a panel or how content inside a panel is arranged
+    - Add shell-local fallback tokens for frame background, card background, border, text, gap, radius, and minimum panel sizing; 2.5 replaces token values through the theme service rather than requiring component CSS rewrites
+    - At 1024x600, preserve both activity rails, card separation, and the central generic content region while using the existing collapse and minimum-size constraints; no card may overlap, clip outside the frame, or erase the surrounding gutter
+    - Accessibility: expose named shell landmarks, visible keyboard focus for interactive shell controls, logical focus order, and appropriately sized pointer targets without adding feature-specific controls
+    - Add screenshot regression fixtures at 1440x900 and 1024x600 plus focused component tests for both permanent activity rails, both side panels, card boundaries, uniform gutters, shared frame color, responsive separation, no primary/secondary UI terminology, and absence of demo or feature-specific placeholder content
+    - _Depends on: 2.1_
+    - _Demo: launch Helix and see a clean desktop shell with a left activity rail and left card panel, central and bottom card panels, a right card panel and right activity rail, and one continuous frame color across the title bar, both rails, status bar, outer background, and panel gaps; no primary/secondary labels, demo UI, or feature-specific panel content is present_
+    - _Requirements: REQ-ARCH-004, REQ-WB-001_
+
+  - [x] 2.3 Implement layout profiles and zen mode
     - Save the current layout as a named profile
     - Restore, switch, rename, and delete profiles from the command palette
     - Profiles persisted in user data and listed with the active one marked
@@ -252,11 +271,11 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Missing-view tolerance: a profile referencing an uninstalled view loads with that slot empty and a one-time notice
     - Corrupted profile store resets to the default layout with notification
     - Tests: round-trip save and restore, switch, missing-view tolerance, corrupt store reset
-    - _Depends on: 2.1_
+    - _Depends on: 2.2_
     - _Demo: arrange a debugging layout, save it as "Debug", switch to a "Writing" profile, switch back and get the exact arrangement returned_
     - _Requirements: REQ-WB-001_
 
-  - [ ] 2.3 Implement window management
+  - [x] 2.4 Implement window management
     - Multiple windows over one kernel, per-window state scoped by window ID
     - Commands: New Window, Open Folder in New Window, Duplicate Workspace in New Window, Close Window
     - Editor tab detach: drag a tab out or move it to another window by command
@@ -272,7 +291,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open two projects in two windows, confirm one kernel process, change a setting in one and see it apply in the other, close one and confirm the other is unaffected_
     - _Requirements: REQ-ARCH-006_
 
-  - [ ] 2.4 Implement theming system
+  - [x] 2.5 Implement theming system
     - Three-layer token model: palette, semantic, component
     - Theme file format with JSON schema: palette, semantic mappings, editor token colors, UI overrides
     - Built-in themes: Helix Dark, Helix Light, High Contrast Dark, High Contrast Light
@@ -281,7 +300,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Theme switch under 100ms with no flicker or layout shift, including the Monaco theme
     - OS preference detection with user override; OS high-contrast mode switches to a high-contrast theme
     - User token overrides from settings without authoring a full theme
-    - Icon color token layer (`icon.foreground`, `icon.disabled`, git, diagnostic, and test state colors) consumed by 2.5
+    - Icon color token layer (`icon.foreground`, `icon.disabled`, git, diagnostic, and test state colors) consumed by 2.6
     - Syntax color coverage: TextMate scopes, semantic token types and modifiers, bracket levels (min 6), diff, git decoration, diagnostic, search, and selection colors
     - VS Code color theme import
     - Theme preview on hover in the selector without committing
@@ -291,7 +310,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: switch all four themes instantly, flip the OS to light and watch the IDE follow, import a VS Code theme, and edit a theme file to see it apply live_
     - _Requirements: REQ-THEME-001, REQ-THEME-002_
 
-  - [ ] 2.5 Implement icon system
+  - [ ] 2.6 Implement icon system
     - Build-time SVG sprite pipeline: `assets/icons/*.svg` to `sprite.svg` plus a generated `IconId` union type
     - Authoring constraints enforced in the build: 16px grid, `currentColor`, no hardcoded color, no embedded raster
     - `<Icon>` component with `id`, `size` (sm 12 / md 16 / lg 20), `label`, `spin`
@@ -316,11 +335,11 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - SVG sanitizer for plugin-contributed icons, applied before DOM injection
     - CI budgets: 8KB per plugin icon, 150KB gzipped first-party sprite
     - Tests: resolution order, per-icon fallback, placeholder on unknown ID, axe checks for labeled vs hidden, sanitizer rejection of malicious SVG, sprite budget, contrast audit
-    - _Depends on: 2.4_
+    - _Depends on: 2.5_
     - _Demo: switch file icon theme to monochrome and back instantly; select None and confirm layout is unchanged; load a theme defining 3 of 150 icons and watch the rest fall back; request a bogus ID and get a placeholder plus one log line_
     - _Requirements: REQ-ICON-001, REQ-ICON-002_
 
-  - [ ] 2.6 Implement notification system
+  - [ ] 2.7 Implement notification system
     - Toasts in four kinds: info, warning, error, progress
     - Auto-dismiss info after 5s and warning after 10s; errors persist until dismissed
     - Up to 3 action buttons per notification
@@ -330,11 +349,11 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Source attribution on every notification
     - ARIA live region announcement
     - Tests: lifecycle per kind, action dispatch, DND suppression, live region announcement
-    - _Depends on: 1.4, 2.1, 2.5_
+    - _Depends on: 1.4, 2.1, 2.6_
     - _Demo: trigger each kind, click an action, enable DND and watch toasts stop while the center still fills_
     - _Requirements: REQ-WB-003_
 
-  - [ ] 2.7 Implement command registry and command palette
+  - [ ] 2.8 Implement command registry and command palette
     - Kernel command registry: ID, title, category, enablement expression
     - Dynamic registration for plugin-contributed commands
     - Palette (Ctrl/Cmd+Shift+P): fuzzy search over titles, MRU first, shortcut display, category grouping
@@ -346,7 +365,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: type "form" and get Format Document with its shortcut; execute it; reopen and find it at the top of the list_
     - _Requirements: REQ-WB-002_
 
-  - [ ] 2.8 Implement keybinding system
+  - [ ] 2.9 Implement keybinding system
     - Platform-specific defaults for Windows, macOS, and Linux
     - User overrides in `~/.helix/keybindings.json` supporting addition and removal
     - When-clause context system with the built-in context set
@@ -357,11 +376,11 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Importable preset schemes: VS Code, JetBrains, Vim basic motions, Emacs basic
     - Resolution precedence user, plugin, default, last-wins within a level
     - Tests: when-clause evaluation, chord handling, conflict detection, platform differences, scheme import
-    - _Depends on: 1.6, 2.7_
+    - _Depends on: 1.6, 2.8_
     - _Demo: rebind Format Document, hit a deliberate conflict and see it flagged, then import the VS Code scheme and confirm familiar shortcuts work_
     - _Requirements: REQ-CONFIG-002_
 
-  - [ ] 2.9 Establish localization infrastructure
+  - [ ] 2.10 Establish localization infrastructure
     - Message catalog module with ICU MessageFormat interpolation and pluralization
     - Lint rule failing the build on any user-visible literal string in a component
     - Catalog loading by OS locale with a `helix.locale` override
@@ -442,7 +461,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Contrast audit utility for theme and icon verification
     - Screen reader verification checklist for the manual passes on NVDA, VoiceOver, and Orca
     - CI gate on every component
-    - _Depends on: 3.2, 2.4, 2.5_
+    - _Depends on: 3.2, 2.5, 2.6_
     - _Demo: a component with an unlabeled icon button fails CI with the specific violation named_
     - _Requirements: REQ-NFR-005_
 
@@ -462,7 +481,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Editor features configurable via settings: minimap, bracket colorization, indent guides, line numbers, word wrap, whitespace rendering, folding
     - Per-file editor state (cursor, selection, scroll, folds) persisted
     - Tests: open-edit-save round-trip, large file mode, binary refusal, crash recovery
-    - _Depends on: 1.3, 1.7, 2.1, 2.4_
+    - _Depends on: 1.3, 1.7, 2.1, 2.5_
     - _Demo: edit and save a TypeScript file and verify it on disk; open a 10MB file into large file mode; open a PNG and get the binary notice_
     - _Requirements: REQ-ED-001_
 
@@ -477,7 +496,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Tab state persistence: open set, order, pinned state, per-tab scroll
     - Unsaved close prompt with Save / Don't Save / Cancel
     - Tests: each operation, persistence round-trip, unsaved prompt including Cancel aborting
-    - _Depends on: 4.1, 2.5_
+    - _Depends on: 4.1, 2.6_
     - _Demo: open ten files, reorder, pin two, split, then close all and get prompted per dirty file; restart and find tabs restored_
     - _Requirements: REQ-ED-001_
 
@@ -562,7 +581,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Missing symbol provider reported rather than returning silent emptiness
     - Index-not-ready fallback to directory scan with an indexing hint
     - Tests: match quality, mode switching, large-workspace latency, no-provider messaging
-    - _Depends on: 4.5, 2.7, 2.5_
+    - _Depends on: 4.5, 2.8, 2.6_
     - _Demo: open a file by partial name, jump to a symbol with `@`, jump to line 42 with `:42`, and switch to command mode with `>`_
     - _Requirements: REQ-WB-002_
 
@@ -580,7 +599,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Full context menu including copy path, copy relative path, and reveal in the OS file manager
     - Functions fully with no VCS provider present; Git decoration is added later as an overlay in 7.3
     - Tests: rendering at scale, CRUD, drag-and-drop, filter, decoration without a VCS provider
-    - _Depends on: 1.7, 2.5_
+    - _Depends on: 1.7, 2.6_
     - _Demo: browse a 10k-file tree smoothly, create and rename and delete, filter to "component", and confirm everything works before Git exists_
     - _Requirements: REQ-FS-003_
 
@@ -594,7 +613,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Whitespace-insensitive toggle
     - Virtualized rendering above 10k lines
     - Diff colors from theme tokens
-    - _Depends on: 4.1, 2.4_
+    - _Depends on: 4.1, 2.5_
     - _Demo: diff two revisions, navigate changes, toggle inline and side-by-side, and compare the buffer against its saved state_
     - _Requirements: REQ-ED-003_
 
@@ -747,7 +766,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Stale diagnostics cleared when their source stops or crashes
     - Counts published for explorer decoration and announced via a live region
     - Tests: rendering, navigation, stale cleanup on server stop, aggregation from multiple sources
-    - _Depends on: 5.1, 4.1, 2.6_
+    - _Depends on: 5.1, 4.1, 2.7_
     - _Demo: open a file with type errors, see squiggles and a populated Problems panel, cycle with F8, fix one and watch it disappear; stop the server and watch its diagnostics clear_
     - _Requirements: REQ-LANG-004_
 
@@ -761,7 +780,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Symbol icons from the icon system's `SymbolKind` set
     - Updates debounced and never blocking typing
     - Tests: symbol source fallback, follow-cursor accuracy, no-provider empty state, typing latency unaffected
-    - _Depends on: 5.3, 5.7, 2.5_
+    - _Depends on: 5.3, 5.7, 2.6_
     - _Demo: open a deep class, watch breadcrumbs track the cursor, jump to a sibling method through a breadcrumb picker, and scroll with the enclosing signature pinned_
     - _Requirements: REQ-ED-008_
 
@@ -844,7 +863,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Commit signing read from git config
     - Git decoration colors published for the explorer overlay
     - Tests: grouping, staging flow, commit flow, signing detection
-    - _Depends on: 7.1, 4.9, 2.5_
+    - _Depends on: 7.1, 4.9, 2.6_
     - _Demo: review changes, open a file diff, stage selected files, write a conventional commit message with a scope, and commit_
     - _Requirements: REQ-GIT-004_
 
@@ -999,7 +1018,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Plugin-contributed settings appearing under Extensions
     - Theme and icon theme pickers with live preview
     - Tests: search, scope switching, each control type, JSON validation, restart labelling
-    - _Depends on: 1.6, 2.7, 2.4, 2.5_
+    - _Depends on: 1.6, 2.8, 2.5, 2.6_
     - _Demo: search "font size", change it, watch the editor update immediately, switch to JSON view to see the raw file, then reset to default_
     - _Requirements: REQ-CONFIG-001, REQ-THEME-001, REQ-ICON-002_
 
@@ -1019,7 +1038,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Pointer targets at least 24x24px with adequate spacing
     - Manual screen reader passes on NVADA, VoiceOver, and Orca against a documented checklist
     - Tests: axe on every component, keyboard navigation E2E across the full workbench, contrast audit in CI
-    - _Depends on: 2.1, 2.4, 2.5, 3.6, 5.8_
+    - _Depends on: 2.1, 2.5, 2.6, 3.6, 5.8_
     - _Demo: drive the entire IDE with the keyboard alone — open a file, edit, save, run a task, commit — while a screen reader announces each region change and every diagnostic count update_
     - _Requirements: REQ-NFR-005_
 
@@ -1042,7 +1061,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Per-window isolation so one webview restart leaves other windows untouched
     - Recovery indicator during reattachment
     - Tests: induced desync corrected by reconciliation; webview killed and restored with open editors intact; multi-window isolation verified
-    - _Depends on: 2.1, 2.3, 1.11_
+    - _Depends on: 2.1, 2.4, 1.11_
     - _Demo: corrupt the frontend projection deliberately and watch reconciliation repair it within 30s; kill the webview and watch it return with the same open files_
     - _Requirements: REQ-ARCH-004, REQ-NFR-002_
 
@@ -1059,7 +1078,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Disable-but-not-uninstall behaviour
     - Compiled into the core binary for MVP, with the migration to the public plugin API tracked as 17.8
     - Tests: per language, open a representative file and assert highlighting, completion, and diagnostics
-    - _Depends on: 5.1, 5.2, 5.8, 2.5_
+    - _Depends on: 5.1, 5.2, 5.8, 2.6_
     - _Demo: open a file in each of the twelve bundled languages and get working highlighting, completion, and diagnostics with no manual setup_
     - _Requirements: REQ-PLUG-003_
 
@@ -1117,7 +1136,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Verified and unverified indicators with an explanation on hover
     - Configuration picker for defined launch configurations
     - Tests: set and remove each breakpoint type, toolbar state transitions, unverified indication
-    - _Depends on: 10.1, 4.1, 2.5_
+    - _Depends on: 10.1, 4.1, 2.6_
     - _Demo: set line, conditional, and log breakpoints, launch, hit them, step through, and see an unverified breakpoint explain that source maps are missing_
     - _Requirements: REQ-DEBUG-001_
 
@@ -1165,7 +1184,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - `@test` chat attachment fed from the latest results
     - Tests: discovery, execution, status propagation, coverage parsing, watch mode debouncing
     - Extend the 9.6 offline harness: discovery and execution of a locally installed test runner succeed with network access denied (REQ-NFR-003.9)
-    - _Depends on: 6.2, 4.1, 10.1, 2.5_
+    - _Depends on: 6.2, 4.1, 10.1, 2.6_
     - _Demo: discover a Vitest suite, run it, see pass and fail in the tree and gutter, open a failure diff, then enable coverage and watch uncovered lines highlight_
     - _Requirements: REQ-TEST-001, REQ-NFR-003_
 
@@ -1393,7 +1412,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Keyboard navigable and screen-reader labelled
     - Tests: checklist state accuracy against real configuration, What's New shown exactly once per update, offline rendering
     - Extend the 9.6 offline harness: Welcome and What's New render fully from bundled assets with network access denied (REQ-NFR-003.6)
-    - _Depends on: 2.1, 1.8, 8.1, 2.8, 9.2_
+    - _Depends on: 2.1, 1.8, 8.1, 2.9, 9.2_
     - _Demo: first launch shows the welcome tab, configuring a provider ticks that checklist item, and after an update What's New appears once with no network access_
     - _Requirements: REQ-WB-004, REQ-NFR-003_
 
@@ -1406,7 +1425,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - Plugin catalog contribution resolved with the same fallback rules
     - Pseudo-locale build target for detecting unextracted strings in CI
     - Tests: pseudo-locale run failing CI on any hardcoded string; RTL screenshot comparison; per-key fallback for an incomplete catalog
-    - _Depends on: 2.9, 9.1_
+    - _Depends on: 2.10, 9.1_
     - _Demo: switch to an RTL locale and watch the entire workbench mirror correctly, then switch to a partially translated locale and see untranslated keys fall back to English rather than showing raw identifiers_
     - _Requirements: REQ-WB-005_
 
@@ -1423,7 +1442,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - `--json` output for `--status` and `--list-plugins`
     - Stale socket or lock detected and cleaned up before starting fresh
     - Tests: each flag, single-instance forwarding, `--wait` as git editor, exit codes, stale lock recovery
-    - _Depends on: 2.3, 1.11_
+    - _Depends on: 2.4, 1.11_
     - _Demo: run `helix --goto src/main.rs:42:8` from a shell and land on that exact position in the running instance; set Helix as GIT_EDITOR and complete an interactive rebase through it_
     - _Requirements: REQ-CLI-001_
 
@@ -1828,43 +1847,43 @@ Phase 1 — Kernel Foundation
 
 Phase 2 — Shell (needs 1.3, 1.4, 1.6)
   2.1 Workbench shell
-   ├── 2.2 Layout profiles
-   ├── 2.3 Window management (+ 1.8)
-   ├── 2.4 Theming ──► 2.5 Icon system
-   ├── 2.7 Command registry + palette ──► 2.8 Keybindings
-   ├── 2.6 Notifications (+ 2.5)
-   └── 2.9 Localization infrastructure
+   ├── 2.2 Production IDE composition ──► 2.3 Layout profiles
+   ├── 2.4 Window management (+ 1.8)
+   ├── 2.5 Theming ──► 2.6 Icon system
+   ├── 2.8 Command registry + palette ──► 2.9 Keybindings
+   ├── 2.7 Notifications (+ 2.6)
+   └── 2.10 Localization infrastructure
 
-Phase 3 — Test infrastructure (needs 1.2-1.4, 2.1, 2.4, 2.5)
+Phase 3 — Test infrastructure (needs 1.2-1.4, 2.1, 2.5, 2.6)
   3.1 Rust integration · 3.2 Component · 3.3 E2E · 3.4 Benchmarks
   3.5 IPC contracts · 3.6 Accessibility harness
 
 Phase 4 — Editor core
-  4.1 Monaco ──┬── 4.2 Tabs (+ 2.5)
+  4.1 Monaco ──┬── 4.2 Tabs (+ 2.6)
                ├── 4.3 File lifecycle (+ 1.7, 1.10)
                ├── 4.4 Find/replace in file
-               ├── 4.9 Diff editor (+ 2.4)
+               ├── 4.9 Diff editor (+ 2.5)
                ├── 4.10 Formatting (+ 1.6)
                └── 4.11 Snippets (+ 1.6)
   1.7 + 1.8 ──► 4.5 Search + index service
                  ├── 4.6 Workspace find/replace (+ 4.9)
-                 └── 4.7 Quick open (+ 2.7, 2.5)
-  1.7 + 2.5 ──► 4.8 File explorer          [no Git dependency]
+                 └── 4.7 Quick open (+ 2.8, 2.6)
+  1.7 + 2.6 ──► 4.8 File explorer          [no Git dependency]
 
 Phase 5 — Language intelligence (needs 1.13 trust gate)
   5.1 LSP host ──┬── 5.2 Completions/hover/signature (+ 4.11)
                  ├── 5.3 Navigation (+ 4.7)
                  ├── 5.4 Editing (+ 4.10)
                  ├── 5.5 Decorations
-                 ├── 5.8 Diagnostics UI (+ 2.6) ──► 5.6 Dynamic reg + pull diagnostics
+                 ├── 5.8 Diagnostics UI (+ 2.7) ──► 5.6 Dynamic reg + pull diagnostics
                  └── 5.7 Tree-sitter ──┐
-  5.3 + 5.7 + 2.5 ──────────────────► 5.9 Breadcrumbs/outline/sticky
+  5.3 + 5.7 + 2.6 ──────────────────► 5.9 Breadcrumbs/outline/sticky
 
 Phase 6 — Terminal + tasks
   1.4 + 2.1 ──► 6.1 Terminal ──► 6.2 Tasks (+ 1.9, 1.13, 5.8)
 
 Phase 7 — Version control
-  1.7 + 1.8 ──► 7.1 Git core ──► 7.2 Source control UI (+ 4.9, 2.5)
+  1.7 + 1.8 ──► 7.1 Git core ──► 7.2 Source control UI (+ 4.9, 2.6)
                                    └── 7.3 Decorations + conflict fallback (+ 4.8)
 
 Phase 8 — AI core (1.12 secrets is the hard prerequisite)
@@ -1936,9 +1955,9 @@ Regenerating this list after any change to a `_Depends on:` line is mandatory. T
     { "wave": 2, "name": "Service container", "tasks": ["1.2"] },
     { "wave": 3, "name": "Kernel plumbing", "tasks": ["1.3", "1.4", "1.5"] },
     { "wave": 4, "name": "Core kernel services and shell entry", "tasks": ["1.6", "1.7", "1.12", "2.1", "3.1", "3.4", "3.5"] },
-    { "wave": 5, "name": "Workspace, durability, theming, harnesses", "tasks": ["1.8", "1.10", "2.2", "2.4", "2.7", "2.9", "3.2", "3.3", "6.1", "8.1"] },
-    { "wave": 6, "name": "Graph, supervision, trust, icons, editor and search foundations", "tasks": ["1.9", "1.11", "1.13", "2.3", "2.5", "2.8", "4.1", "4.5", "7.1", "8.2"] },
-    { "wave": 7, "name": "Editor surfaces, language host, chat", "tasks": ["2.6", "3.6", "4.2", "4.3", "4.4", "4.7", "4.8", "4.9", "4.10", "4.11", "5.1", "5.7", "8.5", "9.1", "9.4"] },
+    { "wave": 5, "name": "Workspace, durability, IDE composition, theming, and harnesses", "tasks": ["1.8", "1.10", "2.2", "2.5", "2.8", "2.10", "3.2", "3.3", "6.1", "8.1"] },
+    { "wave": 6, "name": "Graph, supervision, trust, profiles, windows, icons, editor and search foundations", "tasks": ["1.9", "1.11", "1.13", "2.3", "2.4", "2.6", "2.9", "4.1", "4.5", "7.1", "8.2"] },
+    { "wave": 7, "name": "Editor surfaces, notifications, language host, chat", "tasks": ["2.7", "3.6", "4.2", "4.3", "4.4", "4.7", "4.8", "4.9", "4.10", "4.11", "5.1", "5.7", "8.5", "9.1", "9.4"] },
     { "wave": 8, "name": "LSP features, source control UI, AI surfaces", "tasks": ["4.6", "5.2", "5.3", "5.4", "5.5", "5.8", "7.2", "8.4", "8.7", "9.3"] },
     { "wave": 9, "name": "Diagnostics-dependent work and MVP polish", "tasks": ["5.6", "5.9", "6.2", "7.3", "8.3", "8.6", "9.2", "9.5"] },
     { "wave": 10, "name": "Offline verification", "tasks": ["9.6"] },
@@ -2025,7 +2044,7 @@ Phase 18 is not a separate line item, and it does not all start at once. Each ta
 
 The 1.2 serialization point is real and worth planning around rather than optimizing away. Wanting to run 1.3 and 1.4 alongside it is exactly what produced the earlier incorrect wave table.
 
-Phase 2 parallelizes well across frontend engineers, with one caveat: 2.4 must precede 2.5, and 2.5's ~150 icon assets have a long authoring tail. Start the sprite pipeline and `<Icon>` component early and let assets land incrementally behind the placeholder fallback, so consumer tasks are never blocked.
+Phase 2 parallelizes well across frontend engineers, with two caveats: 2.2 establishes the production composition before 2.3 captures named layouts, and 2.5 must precede 2.6. Task 2.6's ~150 icon assets have a long authoring tail. Start the sprite pipeline and `<Icon>` component early and let assets land incrementally behind the placeholder fallback, so consumer tasks are never blocked.
 
 ---
 
@@ -2046,12 +2065,12 @@ REQ-REMOTE-001 is deliberately excluded: it is a future placeholder that constra
 |----------|--------|
 | Secrets (1.12) in Phase 1, not a late security phase | It gates AI providers (8.1); a Tier 1 blocker cannot sit after MVP |
 | Workspace trust (1.13) before language servers, tasks, debug, and MCP | All four execute workspace-supplied code; the gate must exist before the thing it gates |
-| Command palette (2.7) and quick open (4.7) before AI | They are how a developer operates the IDE, not polish |
+| Command palette (2.8) and quick open (4.7) before AI | They are how a developer operates the IDE, not polish |
 | Search service (4.5) before workspace find (4.6) and quick open (4.7) | One engine, one index, consumed by three surfaces |
 | Explorer (4.8) with no Git dependency | An explorer that cannot render until version control exists is wrongly coupled; Git decoration arrives as an overlay in 7.3 |
 | Supervisor (1.11) in Phase 1 | Zero-data-loss and 2s-restart claims are unimplementable without it, and everything after depends on those claims |
 | Agent isolation (16.1) before agent execution (16.3) | Building execution first means a period where an unsandboxed agent can write anywhere |
-| Localization infrastructure (2.9) in Phase 2, translations (14.2) in Tier 2 | Extraction discipline is cheap on day one and expensive to retrofit; shipped locales can wait |
+| Localization infrastructure (2.10) in Phase 2, translations (14.2) in Tier 2 | Extraction discipline is cheap on day one and expensive to retrofit; shipped locales can wait |
 | Bundled plugin migration (17.8) as an explicit task | Otherwise the Tier 1 / Tier 4 inversion silently becomes a permanent privileged API |
 | MVP gate (9.7) as a task with a report | A performance budget nobody measures is a wish |
 

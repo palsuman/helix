@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Helix",
         "width": 1200,
         "height": 800,
