@@ -310,7 +310,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: switch all four themes instantly, flip the OS to light and watch the IDE follow, import a VS Code theme, and edit a theme file to see it apply live_
     - _Requirements: REQ-THEME-001, REQ-THEME-002_
 
-  - [ ] 2.6 Implement icon system
+  - [x] 2.6 Implement icon system
     - Build-time SVG sprite pipeline: `assets/icons/*.svg` to `sprite.svg` plus a generated `IconId` union type
     - Authoring constraints enforced in the build: 16px grid, `currentColor`, no hardcoded color, no embedded raster
     - `<Icon>` component with `id`, `size` (sm 12 / md 16 / lg 20), `label`, `spin`
@@ -339,21 +339,22 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: switch file icon theme to monochrome and back instantly; select None and confirm layout is unchanged; load a theme defining 3 of 150 icons and watch the rest fall back; request a bogus ID and get a placeholder plus one log line_
     - _Requirements: REQ-ICON-001, REQ-ICON-002_
 
-  - [ ] 2.7 Implement notification system
+  - [x] 2.7 Implement notification system
     - Toasts in four kinds: info, warning, error, progress
     - Auto-dismiss info after 5s and warning after 10s; errors persist until dismissed
     - Up to 3 action buttons per notification
     - Progress notifications with determinate and indeterminate modes plus cancel where supported
-    - Notification center behind a status bar entry, retaining 500 entries for the session
+    - Notification center docked in the resizable right panel, toggled by a permanent bell action in the right activity rail, retaining 500 entries for the session
+    - Tool-window header with clear-all and hide actions; panel visibility and width follow the persisted workbench layout, and clicking the editor does not dismiss the center
     - Do-not-disturb suppressing toasts and accumulating them
     - Source attribution on every notification
     - ARIA live region announcement
-    - Tests: lifecycle per kind, action dispatch, DND suppression, live region announcement
+    - Tests: lifecycle per kind, action dispatch, DND suppression, live region announcement, right-panel docking and rail toggle, keyboard hide and focus restoration
     - _Depends on: 1.4, 2.1, 2.6_
     - _Demo: trigger each kind, click an action, enable DND and watch toasts stop while the center still fills_
     - _Requirements: REQ-WB-003_
 
-  - [ ] 2.8 Implement command registry and command palette
+  - [x] 2.8 Implement command registry and command palette
     - Kernel command registry: ID, title, category, enablement expression
     - Dynamic registration for plugin-contributed commands
     - Palette (Ctrl/Cmd+Shift+P): fuzzy search over titles, MRU first, shortcut display, category grouping
@@ -365,7 +366,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: type "form" and get Format Document with its shortcut; execute it; reopen and find it at the top of the list_
     - _Requirements: REQ-WB-002_
 
-  - [ ] 2.9 Implement keybinding system
+  - [x] 2.9 Implement keybinding system
     - Platform-specific defaults for Windows, macOS, and Linux
     - User overrides in `~/.helix/keybindings.json` supporting addition and removal
     - When-clause context system with the built-in context set

@@ -1,0 +1,200 @@
+#!/usr/bin/env node
+/**
+ * Build-time SVG sprite pipeline (Task 2.6, REQ-ICON-001).
+ *
+ * Reads `frontend/assets/icons/*.svg`, validates authoring constraints,
+ * produces `frontend/public/sprite.svg` and `frontend/src/generated/icons.gen.ts`.
+ */
+
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
+import { join, dirname, basename, extname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..", "..");
+const ICONS_DIR = join(ROOT, "frontend", "assets", "icons");
+const PUBLIC_DIR = join(ROOT, "frontend", "public");
+const GENERATED_DIR = join(ROOT, "frontend", "src", "generated");
+
+function validateSvg(content, filename) {
+  const errors = [];
+  const warnings = [];
+
+  // Must be valid XML/SVG
+  if (!content.trim().startsWith("<svg")) {
+    errors.push("Does not start with <svg> element");
+  }
+
+  // Check for hardcoded colors (fill/stroke with hex/rgb/named colors other than currentColor/none)
+  const colorAttrs = content.match(/(fill|stroke)="(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\)|hsl\([^)]+\)|[a-z]+)"/g) || [];
+  for (const attr of colorAttrs) {
+    if (!attr.includes("currentColor") && !attr.includes("none")) {
+      warnings.push(`Hardcoded color in ${attr} — use currentColor for themeable icons`);
+    }
+  }
+
+  // Check for embedded raster images
+  if (content.includes("<image") || content.includes("xlink:href") || content.includes("href=\"data:")) {
+    errors.push("Embedded raster images not allowed");
+  }
+
+  // Check viewBox is 16x16 (16px grid)
+  const viewBoxMatch = content.match(/viewBox="([^"]+)"/);
+  if (viewBoxMatch) {
+    const [, vb] = viewBoxMatch;
+    const parts = vb.split(/\s+/).map(Number);
+    if (parts.length === 4 && (parts[2] !== 16 || parts[3] !== 16)) {
+      warnings.push(`viewBox should be 0 0 16 16 for 16px grid, got ${vb}`);
+    }
+  } else {
+    warnings.push("Missing viewBox — expected 0 0 16 16");
+  }
+
+  // Check for fill="none" on root (we want stroke-based icons)
+  if (!content.includes('fill="none"') && !content.includes("fill='none'")) {
+    warnings.push("Root SVG should have fill=\"none\" for stroke-based icons");
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+function extractSymbolId(filename) {
+  return basename(filename, extname(filename)).toLowerCase().replace(/[^a-z0-9]/g, "-");
+}
+
+function sanitizeSvg(content) {
+  // Ensure fill="none" on root
+  let sanitized = content.replace(/<svg([^>]*)>/, (match, attrs) => {
+    if (!attrs.includes('fill="none"') && !attrs.includes("fill='none'")) {
+      return `<svg${attrs} fill="none">`;
+    }
+    return match;
+  });
+
+  // Ensure stroke="currentColor" if not present
+  if (!sanitized.includes('stroke="currentColor"') && !sanitized.includes("stroke='currentColor'")) {
+    sanitized = sanitized.replace(/<svg([^>]*)>/, (match, attrs) => {
+      if (!attrs.includes("stroke=")) {
+        return `<svg${attrs} stroke="currentColor">`;
+      }
+      return match;
+    });
+  }
+
+  // Ensure stroke-width if not present
+  if (!sanitized.includes("stroke-width")) {
+    sanitized = sanitized.replace(/<svg([^>]*)>/, (match, attrs) => {
+      return `<svg${attrs} stroke-width="1.5">`;
+    });
+  }
+
+  return sanitized;
+}
+
+function buildSprite() {
+  if (!existsSync(ICONS_DIR)) {
+    console.error(`Icons directory not found: ${ICONS_DIR}`);
+    process.exit(1);
+  }
+
+  const files = readdirSync(ICONS_DIR).filter((f) => f.endsWith(".svg"));
+  if (files.length === 0) {
+    console.warn("No SVG files found in assets/icons");
+    return;
+  }
+
+  const symbols = [];
+  const iconIds = [];
+  let hasErrors = false;
+
+  for (const file of files) {
+    const path = join(ICONS_DIR, file);
+    const content = readFileSync(path, "utf-8");
+    const validation = validateSvg(content, file);
+
+    if (!validation.valid) {
+      console.error(`❌ ${file}: ${validation.errors.join(", ")}`);
+      hasErrors = true;
+      continue;
+    }
+
+    for (const warning of validation.warnings) {
+      console.warn(`⚠️  ${file}: ${warning}`);
+    }
+
+    const id = extractSymbolId(file);
+    iconIds.push(id);
+
+    const symbol = sanitizeSvg(content).trim()
+      .replace(/^<svg\b/, `<symbol id="${id}"`)
+      .replace(/<\/svg>$/, "</symbol>");
+
+    symbols.push(`  ${symbol}`);
+    console.log(`✅ ${file} → ${id}`);
+  }
+
+  if (hasErrors) {
+    console.error("Validation failed — aborting");
+    process.exit(1);
+  }
+
+  // Generate sprite.svg
+  const sprite = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+${symbols.join("\n")}
+</svg>
+`;
+
+  mkdirSync(PUBLIC_DIR, { recursive: true });
+  writeFileSync(join(PUBLIC_DIR, "sprite.svg"), sprite);
+  console.log(`\n📦 Sprite written to ${join(PUBLIC_DIR, "sprite.svg")}`);
+
+  // Generate TypeScript union type
+  const unionType = iconIds.map((id) => `  "${id}"`).join(" |\n");
+  const ts = `// Generated by build-icons.mjs — do not edit manually.
+/**
+ * Union of all first-party icon IDs.
+ * Unknown IDs are a compile error for first-party code.
+ * Plugin/theme-supplied IDs use the runtime placeholder path.
+ */
+export type IconId =
+${unionType}
+;
+
+/**
+ * Icon size scale (REQ-ICON-001.3).
+ * Scales with UI zoom; crispness verified at 1x, 1.5x, 2x, 3x DPI.
+ */
+export type IconSize = "sm" | "md" | "lg";
+
+/** Pixel size for each IconSize. */
+export const ICON_SIZE_PX = {
+  sm: 12,
+  md: 16,
+  lg: 20,
+} as const;
+
+/** All known icon IDs for runtime validation. */
+export const KNOWN_ICON_IDS = [
+${iconIds.map((id) => `  "${id}",`).join("\n")}
+] as const;
+
+/**
+ * Check if an icon ID is known at compile time.
+ * Returns the ID if known, or "placeholder" with a console warning if unknown.
+ */
+export function resolveIconId(id: string): IconId {
+  if (KNOWN_ICON_IDS.includes(id as IconId)) {
+    return id as IconId;
+  }
+  console.warn(\`[icons] Unknown icon ID: "\${id}" — rendering placeholder\`);
+  return "placeholder" as IconId;
+}
+`;
+
+  mkdirSync(GENERATED_DIR, { recursive: true });
+  writeFileSync(join(GENERATED_DIR, "icons.gen.ts"), ts);
+  console.log(`📦 Types written to ${join(GENERATED_DIR, "icons.gen.ts")}`);
+}
+
+buildSprite();

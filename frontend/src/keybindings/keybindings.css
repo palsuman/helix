@@ -1,0 +1,250 @@
+.workbench-editor-grid > article:has(.keybinding-editor),
+.workbench-editor-grid > article > div:has(> .keybinding-editor) {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.keybinding-editor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  color: var(--helix-foreground, #dfe1e5);
+  background: var(--helix-card-background, #1e1f22);
+  font-size: 12px;
+}
+
+.keybinding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--helix-card-border, #393b40);
+  gap: 8px;
+}
+.keybinding-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.keybinding-editor input,
+.keybinding-editor select,
+.keybinding-editor button {
+  font: inherit;
+  color: inherit;
+  border: 1px solid var(--helix-card-border, #393b40);
+  border-radius: 4px;
+  background: var(--helix-frame-background, #2b2d30);
+  min-height: 28px;
+}
+.keybinding-editor input,
+.keybinding-editor select {
+  min-width: 0;
+  padding: 5px 7px;
+}
+.keybinding-editor button {
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.keybinding-editor button:hover {
+  background: var(--helix-hover-background, #32343a);
+}
+.keybinding-editor button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.keybinding-editor :is(input, select, button):focus-visible {
+  outline: 2px solid var(--helix-focus-border, #3574f0);
+  outline-offset: 1px;
+}
+.keybinding-editor button[aria-pressed="true"] {
+  border-color: var(--helix-accent, #3574f0);
+  background: var(--helix-hover-background, #32343a);
+}
+.keybinding-editor .keybinding-icon-button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+}
+.keybinding-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+}
+.keybinding-conflict-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.keybinding-editor input[type="checkbox"] {
+  min-height: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--helix-accent, #3574f0);
+}
+.keybinding-scheme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.keybinding-scheme select {
+  flex: 1;
+}
+.keybinding-draft {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--helix-hover-background, #32343a);
+  border-block: 1px solid var(--helix-card-border, #393b40);
+}
+.keybinding-draft h2 {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.keybinding-draft label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.keybinding-record-field {
+  display: flex;
+  gap: 4px;
+}
+.keybinding-record-field input {
+  width: 100%;
+}
+.keybinding-draft-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+.keybinding-conflicts {
+  grid-column: 1 / -1;
+  padding: 8px 0;
+}
+.keybinding-conflicts h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+.keybinding-conflicts > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 4px;
+}
+.keybinding-validation,
+.keybinding-error,
+.keybinding-warnings {
+  grid-column: 1 / -1;
+  color: var(--helix-warning-foreground, #e3b341);
+  margin: 0;
+  padding: 8px 14px;
+  overflow-wrap: anywhere;
+}
+.keybinding-error {
+  color: var(--helix-error-foreground, #f05f57);
+}
+.keybinding-error button {
+  margin-left: 8px;
+}
+.keybinding-table-scroll {
+  min-height: 100px;
+  flex: 1;
+  overflow: auto;
+}
+.keybinding-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 620px;
+  text-align: left;
+}
+.keybinding-editor th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--helix-frame-background, #2b2d30);
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-weight: 500;
+}
+.keybinding-editor th,
+.keybinding-editor td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--helix-card-border, #393b40);
+  vertical-align: top;
+}
+.keybinding-editor td:first-child {
+  min-width: 190px;
+  max-width: 280px;
+}
+.keybinding-editor strong,
+.keybinding-editor small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.keybinding-editor small,
+.keybinding-unassigned {
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 10px;
+  margin-top: 3px;
+}
+.keybinding-editor code {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.keybinding-editor kbd {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.keybinding-row-actions {
+  display: flex;
+}
+.keybinding-row-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--helix-warning-foreground, #e3b341);
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+}
+.keybinding-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--helix-card-border, #393b40);
+  padding: 7px 14px;
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 10px;
+}
+.keybinding-footer span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keybinding-empty {
+  padding: 20px;
+  color: var(--helix-foreground-muted, #9da0a8);
+}

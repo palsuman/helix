@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type CSSProperties, type ReactNode } from "react";
 import type { IpcClient } from "../ipc";
 import { PanelErrorBoundary } from "./PanelErrorBoundary";
 import {
@@ -11,7 +11,6 @@ import {
   useLayoutStore,
 } from "./layoutStore";
 import { ResizeHandle } from "./ResizeHandle";
-import { executeLayoutProfileCommand } from "./profileCommands";
 import { useLayoutPersistence } from "./useLayoutPersistence";
 import "./workbench.css";
 
@@ -103,36 +102,9 @@ export function WorkbenchShell({
 }: WorkbenchShellProps) {
   const layout = useLayoutStore();
   const persistence = useLayoutPersistence(client, windowId);
-  const zenChordStartedAt = useRef(0);
   const activeActivity = activities.find((activity) => activity.id === layout.activeActivity);
   const activePanel = panels.find((panel) => panel.id === layout.activePanel);
   const primaryOnLeft = layout.primarySidebarPosition === "left";
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const now = performance.now();
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        zenChordStartedAt.current = now;
-        event.preventDefault();
-        return;
-      }
-      if (
-        event.key.toLowerCase() === "z" &&
-        zenChordStartedAt.current > 0 &&
-        now - zenChordStartedAt.current <= 1_500
-      ) {
-        zenChordStartedAt.current = 0;
-        event.preventDefault();
-        executeLayoutProfileCommand("workbench.action.toggleZenMode");
-        return;
-      }
-      if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key !== "Shift") {
-        zenChordStartedAt.current = 0;
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   useEffect(() => {
     if (layout.activeProfile === null) return;

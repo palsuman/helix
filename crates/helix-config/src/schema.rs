@@ -490,14 +490,16 @@ impl SchemaRegistry {
                 json!("helix-colored"),
                 "Appearance",
                 "Active file icon theme.",
-            ),
+            )
+            .allowed(&["helix-colored", "helix-monochrome", "none"]),
             SettingSchema::new(
                 "workbench.productIconTheme",
                 SettingKind::String,
                 json!("helix-default"),
                 "Appearance",
                 "Active product icon theme.",
-            ),
+            )
+            .allowed(&["helix-default"]),
             SettingSchema::new(
                 "workbench.startupEditor",
                 SettingKind::String,

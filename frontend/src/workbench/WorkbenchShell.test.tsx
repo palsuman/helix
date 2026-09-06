@@ -139,19 +139,17 @@ describe("WorkbenchShell", () => {
     );
   });
 
-  it("toggles zen mode with Ctrl+K Z without mutating the saved layout", () => {
+  it("reflects shared zen mode state without mutating the saved layout", () => {
     const { client } = layoutClient();
     render(<WorkbenchShell client={client} />);
     const before = layoutSnapshot();
 
-    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "z" });
+    act(() => useLayoutStore.getState().toggleZenMode());
 
     expect(screen.getByTestId("workbench")).toHaveClass("workbench--zen");
     expect(layoutSnapshot()).toEqual(before);
 
-    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    fireEvent.keyDown(window, { key: "z" });
+    act(() => useLayoutStore.getState().toggleZenMode());
     expect(screen.getByTestId("workbench")).not.toHaveClass("workbench--zen");
     expect(layoutSnapshot()).toEqual(before);
   });

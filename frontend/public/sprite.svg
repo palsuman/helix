@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="add" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="8" cy="8" r="6"/>
+  <path d="M8 5v6M5 8h6"/>
+</symbol>
+  <symbol id="bell" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.5 11.5h9l-1-1.5V7a3.5 3.5 0 0 0-7 0v3l-1 1.5Z"/>
+  <path d="M6.5 13a1.75 1.75 0 0 0 3 0"/>
+</symbol>
+  <symbol id="clear-all" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2 3h12M2 7h7M2 11h5m3-1 4 4m0-4-4 4"/>
+</symbol>
+  <symbol id="close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m4 4 8 8M12 4l-8 8"/>
+</symbol>
+  <symbol id="edit" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m10 2 4 4-8.5 8H2v-3.5L10 2Zm-1 1 4 4"/>
+</symbol>
+  <symbol id="error" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="8" cy="8" r="6"/>
+  <path d="M8 4.5v4M8 11.5h.01"/>
+</symbol>
+  <symbol id="file" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 3h10v10H3z"/>
+  <path d="M7 7h6v6H7z"/>
+</symbol>
+  <symbol id="folder-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 3h10v10H3z"/>
+  <path d="M3 7h10"/>
+  <path d="M7 3v4"/>
+</symbol>
+  <symbol id="folder" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 3h10v10H3z"/>
+  <path d="M3 7h10"/>
+</symbol>
+  <symbol id="info" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="8" cy="8" r="6"/>
+  <path d="M8 7v4M8 4.5h.01"/>
+</symbol>
+  <symbol id="keyboard" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
+  <path d="M4 6h.1M6.5 6h.1M9 6h.1M11.5 6h.1M4 8.5h.1M6.5 8.5h.1M9 8.5h.1M11.5 8.5h.1M5.5 10.5h5"/>
+</symbol>
+  <symbol id="placeholder" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="2" width="12" height="12" rx="2"/>
+  <path d="M6 6h4v4H6z"/>
+</symbol>
+  <symbol id="record" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="8" cy="8" r="6"/>
+  <circle cx="8" cy="8" r="2.5"/>
+</symbol>
+  <symbol id="reset" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 6a5.5 5.5 0 1 1-.2 4M2.5 2.5V6H6"/>
+</symbol>
+  <symbol id="spinner" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 8a6 6 0 1 1-1.76-4.24"/>
+</symbol>
+  <symbol id="split-horizontal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/>
+  <path d="M14 3H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/>
+</symbol>
+  <symbol id="split-vertical" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 12V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+  <path d="M7 8h6"/>
+  <path d="M10 5v6"/>
+</symbol>
+  <symbol id="terminal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5 11V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/>
+  <path d="M9 8v4"/>
+</symbol>
+  <symbol id="warning" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8 2.25 14 13H2L8 2.25Z"/>
+  <path d="M8 6v3.25M8 11.5h.01"/>
+</symbol>
+</svg>

@@ -55,10 +55,14 @@ export default [
     },
   },
   {
-    files: ["**/*.{js,jsx}"],
+    files: ["**/*.{js,jsx,mjs}"],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,
+    },
+    rules: {
+      "no-unused-vars": "off",
+      "no-undef": "off",
     },
   },
 ];

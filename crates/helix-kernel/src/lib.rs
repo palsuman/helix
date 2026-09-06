@@ -5,9 +5,11 @@
 //! `helix-supervisor` process owns Tauri Core and forwards authenticated typed
 //! requests to this authoritative domain process.
 
+pub mod command;
 pub mod config;
 pub mod fs;
 pub mod ipc;
+pub mod keybindings;
 pub mod log;
 pub mod project_graph;
 pub mod secrets;
@@ -44,6 +46,8 @@ pub struct Kernel {
     pub secrets: Arc<helix_secrets::SecretService>,
     pub trust: Arc<helix_trust::TrustService>,
     pub windows: Arc<windows::WindowManager>,
+    pub commands: Arc<command::CommandRegistry>,
+    pub keybindings: Arc<keybindings::KeybindingService>,
 }
 
 /// Build and start the kernel's service container, returning it alongside
@@ -102,6 +106,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     // `trust everything` decision held in the trust store.
     let trust = trust::build_service(logger.clone());
     let windows = windows::build_service(config.clone(), workspace.clone(), logger.clone());
+    let commands = Arc::new(command::CommandRegistry::with_builtins());
+    let keybindings = Arc::new(keybindings::KeybindingService::for_user());
 
     let mut dispatcher = ipc::build_dispatcher(KERNEL_VERSION);
     stream::register_commands(&mut dispatcher, &streaming);
@@ -125,6 +131,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
     );
     state::register_commands(&mut dispatcher, state.clone());
     windows::register_commands(&mut dispatcher, windows.clone());
+    command::register_commands(&mut dispatcher, commands.clone());
+    keybindings::register_commands(&mut dispatcher, keybindings.clone());
     let dispatcher = Arc::new(dispatcher);
 
     let mut container = ServiceContainer::new();
@@ -172,6 +180,8 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         secrets,
         trust,
         windows,
+        commands,
+        keybindings,
     })
 }
 
