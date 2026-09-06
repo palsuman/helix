@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/build-icons.mjs && vite",
-    "build": "node scripts/build-icons.mjs && tsc -b && vite build",
+    "build": "node scripts/build-icons.mjs && npm run i18n:check && npm run lint && tsc -b && vite build",
     "tauri:dev": "node ../scripts/prepare-kernel-sidecar.mjs debug && cd ../crates/helix-supervisor && ../../frontend/node_modules/.bin/tauri dev",
     "tauri:build": "node ../scripts/prepare-kernel-sidecar.mjs release && cd ../crates/helix-supervisor && ../../frontend/node_modules/.bin/tauri build",
     "test:ipc-e2e": "node ../scripts/run-ipc-e2e.mjs",
@@ -13,13 +13,18 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --config vitest.config.ts",
+    "i18n:extract": "node scripts/extract-messages.mjs",
+    "i18n:check": "node scripts/extract-messages.mjs --check",
+    "test:eslint-rules": "node eslint-rules/no-user-visible-literals.test.js",
+    "test": "npm run test:eslint-rules && vitest run --config vitest.config.ts",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.17",
     "@tauri-apps/api": "2.11.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-intl": "10.1.26",
     "zustand": "5.0.14"
   },
   "devDependencies": {
@@ -27,6 +32,7 @@
     "@babel/eslint-parser": "8.0.1",
     "@babel/preset-react": "8.0.1",
     "@babel/preset-typescript": "8.0.1",
+    "@formatjs/cli": "6.16.23",
     "@eslint/js": "10.0.1",
     "@tauri-apps/cli": "2.11.4",
     "@testing-library/jest-dom": "7.0.0",

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { TrustStatusResponse } from "../generated/TrustStatusResponse";
+import { useMessage } from "../localization";
 
 export function TrustBanner({
   status,
@@ -8,6 +9,7 @@ export function TrustBanner({
   status: TrustStatusResponse;
   onTrust: (path: string) => void;
 }) {
+  const t = useMessage();
   const [dismissed, setDismissed] = useState(false);
   if (
     dismissed ||
@@ -41,15 +43,15 @@ export function TrustBanner({
       }}
     >
       <span>
-        Restricted mode: tasks and language servers are blocked for this workspace.
-        {!status.store_healthy && " The trust store is unreadable; every folder stays restricted."}
+        {t("trustRestricted")}
+        {!status.store_healthy && ` ${t("trustStoreUnreadable")}`}
       </span>
       <span style={{ display: "flex", gap: "0.5rem" }}>
         <button type="button" onClick={() => onTrust(path)}>
-          Trust folder
+          {t("trustFolder")}
         </button>
         <button type="button" onClick={() => setDismissed(true)}>
-          Dismiss
+          {t("commonDismiss")}
         </button>
       </span>
     </aside>

@@ -3,6 +3,8 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 interface Props {
   name: string;
   children: ReactNode;
+  failedLabel: string;
+  reloadLabel: string;
 }
 
 interface State {
@@ -32,10 +34,10 @@ export class PanelErrorBoundary extends Component<Props, State> {
     if (this.state.error !== null) {
       return (
         <div className="workbench-panel-error" role="alert">
-          <strong>{this.props.name} failed to load</strong>
-          <span>{this.state.error.message}</span>
+          <strong>{this.props.failedLabel}</strong>
+          <span dir="auto">{this.state.error.message}</span>
           <button type="button" onClick={this.reload}>
-            Reload panel
+            {this.props.reloadLabel}
           </button>
         </div>
       );

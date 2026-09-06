@@ -1,6 +1,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { CommandDescriptor } from "../generated/CommandDescriptor";
 import { Icon } from "../icons";
+import {
+  localizeCommand,
+  useLocalization,
+  useLocalizationSnapshot,
+  useMessage,
+} from "../localization";
 import { notify } from "../notifications";
 import type { CommandContext } from "./context";
 import { groupCommands, rankCommands, type RankedCommand } from "./ranking";
@@ -14,6 +20,9 @@ export interface CommandPaletteProps {
 }
 
 export function CommandPalette({ registry, context = {}, shortcutFor }: CommandPaletteProps) {
+  const t = useMessage();
+  const localization = useLocalization();
+  useLocalizationSnapshot();
   const [open, setOpen] = useState(false);
   const [originContext, setOriginContext] = useState(context);
   const [query, setQuery] = useState("");
@@ -25,9 +34,17 @@ export function CommandPalette({ registry, context = {}, shortcutFor }: CommandP
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const listId = useId();
+  const localizedCommands = commands.map((command) => localizeCommand(command, localization));
   const ranked = useMemo(
-    () => rankCommands(commands, query, registry.recent(), originContext),
-    [commands, originContext, query, registry],
+    () =>
+      rankCommands(
+        localizedCommands,
+        query,
+        registry.recent(),
+        originContext,
+        t("commandPaletteUnavailable"),
+      ),
+    [localizedCommands, originContext, query, registry, t],
   );
   const groups = useMemo(() => groupCommands(ranked), [ranked]);
   const active = ranked[activeIndex];
@@ -86,7 +103,7 @@ export function CommandPalette({ registry, context = {}, shortcutFor }: CommandP
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       setError(message);
-      notify({ kind: "error", source: "Command Palette", message });
+      notify({ kind: "error", source: t("commandPaletteSource"), message });
     }
   };
 
@@ -140,15 +157,15 @@ export function CommandPalette({ registry, context = {}, shortcutFor }: CommandP
         className="command-palette"
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={t("commandPaletteTitle")}
         onKeyDown={onDialogKeyDown}
       >
         <div className="command-palette-input-row">
-          <span aria-hidden="true">&gt;</span>
+          <span aria-hidden="true">{String.fromCharCode(62)}</span>
           <input
             ref={inputRef}
             role="combobox"
-            aria-label="Search commands"
+            aria-label={t("commandPaletteSearch")}
             aria-expanded="true"
             aria-controls={listId}
             aria-activedescendant={
@@ -159,23 +176,23 @@ export function CommandPalette({ registry, context = {}, shortcutFor }: CommandP
               setQuery(event.target.value);
               setActiveIndex(0);
             }}
-            placeholder="Type a command"
+            placeholder={t("commandPalettePlaceholder")}
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="button" aria-label="Close command palette" onClick={close}>
-            <Icon id="close" size="sm" />
+          <button type="button" aria-label={t("commandPaletteClose")} onClick={close}>
+            <Icon id="close" size="sm" label={t("commandPaletteClose")} />
           </button>
         </div>
         <div id={listId} className="command-palette-results" role="listbox">
-          {loading && <p className="command-palette-state">Loading commands...</p>}
+          {loading && <p className="command-palette-state">{t("commandPaletteLoading")}</p>}
           {!loading && error !== null && (
             <p className="command-palette-state" role="alert">
               {error}
             </p>
           )}
           {!loading && error === null && ranked.length === 0 && (
-            <p className="command-palette-state">No matching commands</p>
+            <p className="command-palette-state">{t("commandPaletteEmpty")}</p>
           )}
           {!loading &&
             error === null &&
@@ -198,8 +215,10 @@ export function CommandPalette({ registry, context = {}, shortcutFor }: CommandP
                       onClick={() => void execute(entry)}
                     >
                       <span className="command-palette-title">
-                        <strong>{entry.command.title}</strong>
-                        <small>{entry.enabled ? entry.command.source : entry.disabledReason}</small>
+                        <strong dir="auto">{entry.command.title}</strong>
+                        <small dir="auto">
+                          {entry.enabled ? entry.command.source : entry.disabledReason}
+                        </small>
                       </span>
                       {(shortcutFor ? shortcutFor(entry.command.id) : entry.command.keybinding) && (
                         <kbd>

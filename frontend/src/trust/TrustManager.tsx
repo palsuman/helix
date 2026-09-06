@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TrustedFolderEntry } from "../generated/TrustedFolderEntry";
+import { useMessage } from "../localization";
 import type { TrustClient } from "./client";
 
 export function TrustManager({ client }: { client: TrustClient }) {
+  const t = useMessage();
   const [entries, setEntries] = useState<TrustedFolderEntry[]>([]);
   const [trustEverything, setTrustEverything] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,18 +29,18 @@ export function TrustManager({ client }: { client: TrustClient }) {
   return (
     <section aria-labelledby="trust-manager-title">
       <h2 id="trust-manager-title" style={{ fontSize: "1rem" }}>
-        Trusted folders
+        {t("trustManagerTitle")}
       </h2>
       {error && <p role="alert">{error}</p>}
       {entries.length === 0 ? (
-        <p>No trusted folders yet.</p>
+        <p>{t("trustNone")}</p>
       ) : (
-        <ul style={{ paddingLeft: "1.25rem" }}>
+        <ul style={{ paddingInlineStart: "1.25rem" }}>
           {entries.map((entry) => (
             <li key={entry.path} style={{ marginBottom: "0.35rem" }}>
-              <code>{entry.path}</code>
-              {entry.inherit_to_children ? " (includes subfolders)" : ""}
-              {" — "}
+              <code dir="auto">{entry.path}</code>
+              {entry.inherit_to_children ? t("trustIncludesSubfoldersSuffix") : ""}
+              {String.fromCharCode(32, 8212, 32)}
               <button
                 type="button"
                 onClick={() => {
@@ -47,7 +49,7 @@ export function TrustManager({ client }: { client: TrustClient }) {
                   });
                 }}
               >
-                Remove trust
+                {t("trustRemove")}
               </button>
             </li>
           ))}
@@ -55,7 +57,7 @@ export function TrustManager({ client }: { client: TrustClient }) {
       )}
       {trustEverything ? (
         <p>
-          All folders are trusted.{" "}
+          {t("trustAll")}{" "}
           <button
             type="button"
             onClick={() => {
@@ -64,22 +66,19 @@ export function TrustManager({ client }: { client: TrustClient }) {
               });
             }}
           >
-            Require trust decisions
+            {t("trustRequireDecisions")}
           </button>
         </p>
       ) : warningOpen ? (
         <div role="alert" style={{ border: "1px solid #b45309", padding: "0.75rem" }}>
-          <p>
-            Trusting every folder allows code from any repository you open to launch processes on
-            this machine. Only continue if you understand this risk.
-          </p>
+          <p>{t("trustEveryWarning")}</p>
           <label>
             <input
               type="checkbox"
               checked={warningAcknowledged}
               onChange={(event) => setWarningAcknowledged(event.currentTarget.checked)}
             />{" "}
-            I understand the security risk
+            {t("trustAcknowledge")}
           </label>{" "}
           <button
             type="button"
@@ -95,15 +94,15 @@ export function TrustManager({ client }: { client: TrustClient }) {
               );
             }}
           >
-            Trust every folder
+            {t("trustEveryFolder")}
           </button>{" "}
           <button type="button" onClick={() => setWarningOpen(false)}>
-            Cancel
+            {t("commonCancel")}
           </button>
         </div>
       ) : (
         <button type="button" onClick={() => setWarningOpen(true)}>
-          Trust all folders…
+          {t("trustAllFolders")}
         </button>
       )}
     </section>

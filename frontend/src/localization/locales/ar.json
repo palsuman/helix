@@ -1,0 +1,14 @@
+{
+  "common.cancel": "إلغاء",
+  "common.clear": "مسح",
+  "common.close": "إغلاق",
+  "common.dismiss": "تجاهل",
+  "common.loading": "جارٍ التحميل...",
+  "common.reload": "إعادة التحميل",
+  "common.remove": "إزالة",
+  "common.reset": "إعادة تعيين",
+  "common.save": "حفظ",
+  "localization.items": "{count, plural, =0 {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} other {# عنصرًا}}",
+  "localization.welcome": "مرحبًا، {name}",
+  "localization.restartRequired": "تُطبّق تغييرات اللغة بعد إعادة تشغيل Helix."
+}

@@ -40,6 +40,7 @@ export function rankCommands(
   query: string,
   recentIds: readonly string[],
   context: CommandContext,
+  unavailableReason = "Command unavailable in the current context.",
 ): RankedCommand[] {
   const recent = new Map(recentIds.map((id, index) => [id, index]));
   return commands
@@ -52,9 +53,7 @@ export function rankCommands(
           command,
           score,
           enabled,
-          disabledReason: enabled
-            ? null
-            : (command.disabled_reason ?? "Command unavailable in the current context."),
+          disabledReason: enabled ? null : (command.disabled_reason ?? unavailableReason),
         } satisfies RankedCommand,
       ];
     })

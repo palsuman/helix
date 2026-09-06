@@ -166,7 +166,7 @@
   color: var(--helix-error-foreground, #f05f57);
 }
 .keybinding-error button {
-  margin-left: 8px;
+  margin-inline-start: 8px;
 }
 .keybinding-table-scroll {
   min-height: 100px;
@@ -177,7 +177,7 @@
   border-collapse: collapse;
   width: 100%;
   min-width: 620px;
-  text-align: left;
+  text-align: start;
 }
 .keybinding-editor th {
   position: sticky;

@@ -1,14 +1,16 @@
 import type { TrustStatusResponse } from "../generated/TrustStatusResponse";
+import { useMessage } from "../localization";
 
 export function TrustStatusBar({ status }: { status: TrustStatusResponse | null }) {
+  const t = useMessage();
   if (!status?.enabled || status.trust_everything) return null;
 
   const label =
     status.workspace_mode === "restricted"
-      ? "Restricted mode"
+      ? t("trustRestrictedMode")
       : status.pending_prompts.length > 0
-        ? "Trust required"
-        : "Trusted";
+        ? t("trustRequired")
+        : t("trustTrusted");
 
   const color =
     status.workspace_mode === "restricted" || status.pending_prompts.length > 0
@@ -18,7 +20,7 @@ export function TrustStatusBar({ status }: { status: TrustStatusResponse | null 
   return (
     <span
       role="status"
-      aria-label={`Workspace trust: ${label}`}
+      aria-label={t("trustWorkspaceLabel", { status: label })}
       style={{
         display: "inline-flex",
         alignItems: "center",

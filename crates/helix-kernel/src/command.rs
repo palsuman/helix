@@ -27,9 +27,18 @@ pub enum CommandTarget {
 pub struct CommandDescriptor {
     pub id: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub title_message_id: Option<String>,
     pub category: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub category_message_id: Option<String>,
     pub enablement: Option<String>,
     pub disabled_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub disabled_reason_message_id: Option<String>,
     pub keybinding: Option<String>,
     pub source: String,
     pub target: CommandTarget,
@@ -190,9 +199,12 @@ fn renderer(
     CommandDescriptor {
         id: id.into(),
         title: title.into(),
+        title_message_id: Some(format!("command.{id}.title")),
         category: category.into(),
+        category_message_id: Some(format!("command.category.{}", category.to_lowercase())),
         enablement: enablement.map(str::to_string),
         disabled_reason: disabled_reason.map(str::to_string),
+        disabled_reason_message_id: disabled_reason.map(|_| format!("command.{id}.disabled")),
         keybinding: keybinding.map(str::to_string),
         source: "Helix".into(),
         target: CommandTarget::Renderer,
@@ -396,9 +408,12 @@ mod tests {
         CommandDescriptor {
             id: id.into(),
             title: title.into(),
+            title_message_id: None,
             category: "Plugin".into(),
+            category_message_id: None,
             enablement: None,
             disabled_reason: None,
+            disabled_reason_message_id: None,
             keybinding: None,
             source: "example.plugin".into(),
             target: CommandTarget::Ipc {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { message } from "../localization/message";
 
 export const PRIMARY_SIDEBAR_MIN = 200;
 export const PRIMARY_SIDEBAR_MAX = 600;
@@ -97,7 +98,7 @@ const clamp = (value: number, min: number, max: number) =>
 
 const cleanProfileName = (name: string) => {
   const normalized = name.trim();
-  if (normalized.length === 0) throw new Error("A layout profile name cannot be empty.");
+  if (normalized.length === 0) throw new Error(message("workbenchProfileNameEmpty"));
   return normalized;
 };
 
@@ -141,7 +142,7 @@ function removeUnavailableViews(
 }
 
 const missingViewsNotice = (name: string, missing: readonly string[]) =>
-  `Layout profile '${name}' loaded with unavailable views left empty: ${missing.join(", ")}.`;
+  message("workbenchProfileMissingViews", { name, views: missing.join(", ") });
 
 let editorSequence = 1;
 
@@ -217,7 +218,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
   switchProfile: (rawName, available) => {
     const name = cleanProfileName(rawName);
     const profile = get().profiles.find((candidate) => candidate.name === name);
-    if (profile === undefined) throw new Error(`Layout profile '${name}' does not exist.`);
+    if (profile === undefined) throw new Error(message("workbenchProfileMissing", { name }));
     const layout = geometrySnapshot(profile.layout);
     const missing = available === undefined ? [] : removeUnavailableViews(layout, available);
     set({
@@ -245,10 +246,10 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     const nextName = cleanProfileName(rawNextName);
     set((state) => {
       if (!state.profiles.some((profile) => profile.name === currentName)) {
-        throw new Error(`Layout profile '${currentName}' does not exist.`);
+        throw new Error(message("workbenchProfileMissing", { name: currentName }));
       }
       if (currentName !== nextName && state.profiles.some((profile) => profile.name === nextName)) {
-        throw new Error(`Layout profile '${nextName}' already exists.`);
+        throw new Error(message("workbenchProfileExists", { name: nextName }));
       }
       return {
         profiles: state.profiles.map((profile) =>
@@ -262,7 +263,7 @@ export const useLayoutStore = create<LayoutStore>((set, get) => ({
     const name = cleanProfileName(rawName);
     set((state) => {
       if (!state.profiles.some((profile) => profile.name === name)) {
-        throw new Error(`Layout profile '${name}' does not exist.`);
+        throw new Error(message("workbenchProfileMissing", { name }));
       }
       return {
         profiles: state.profiles.filter((profile) => profile.name !== name),

@@ -1,0 +1,14 @@
+{
+  "common.cancel": "Cancelar",
+  "common.clear": "Borrar",
+  "common.close": "Cerrar",
+  "common.dismiss": "Descartar",
+  "common.loading": "Cargando...",
+  "common.reload": "Recargar",
+  "common.remove": "Eliminar",
+  "common.reset": "Restablecer",
+  "common.save": "Guardar",
+  "localization.items": "{count, plural, =0 {Ningún elemento} one {# elemento} other {# elementos}}",
+  "localization.welcome": "Bienvenido, {name}",
+  "localization.restartRequired": "Los cambios de idioma se aplican después de reiniciar Helix."
+}

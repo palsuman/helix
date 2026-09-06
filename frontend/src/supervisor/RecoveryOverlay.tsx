@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useMessage } from "../localization";
 import { SupervisorClient, type RecoveryAction, type SupervisorStatus } from "./client";
 
 export function RecoveryOverlay({ client }: { client: SupervisorClient }) {
+  const t = useMessage();
   const [status, setStatus] = useState<SupervisorStatus | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -48,21 +50,24 @@ export function RecoveryOverlay({ client }: { client: SupervisorClient }) {
       }}
     >
       <div style={{ maxWidth: "36rem", padding: "2rem", background: "#202033" }}>
-        <h2 id="kernel-recovery-title">Kernel recovery required</h2>
-        <p>
-          Helix stopped restarting the kernel after repeated crashes. Your persisted work remains
-          on disk.
-        </p>
-        {status.safe_mode && <p>Safe mode is enabled: plugins and session restore are disabled.</p>}
-        {status.cause.panic_message && <p>Last error: {status.cause.panic_message}</p>}
+        <h2 id="kernel-recovery-title">{t("recoveryTitle")}</h2>
+        <p>{t("recoveryDescription")}</p>
+        {status.safe_mode && <p>{t("recoverySafeMode")}</p>}
+        {status.cause.panic_message && (
+          <p>{t("recoveryLastError", { error: status.cause.panic_message })}</p>
+        )}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button type="button" onClick={() => act("retry")}>Retry</button>
-          <button type="button" onClick={() => act("start_without_session_restore")}>
-            Start without session restore
+          <button type="button" onClick={() => act("retry")}>
+            {t("recoveryRetry")}
           </button>
-          <button type="button" onClick={() => act("open_logs")}>Open logs</button>
+          <button type="button" onClick={() => act("start_without_session_restore")}>
+            {t("recoveryWithoutRestore")}
+          </button>
+          <button type="button" onClick={() => act("open_logs")}>
+            {t("recoveryOpenLogs")}
+          </button>
         </div>
-        {actionError && <p role="alert">Recovery action failed: {actionError}</p>}
+        {actionError && <p role="alert">{t("recoveryActionFailed", { error: actionError })}</p>}
       </div>
     </section>
   );

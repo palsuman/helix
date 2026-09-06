@@ -12,6 +12,7 @@ import { injectIconStyles } from "./icons";
 import { NotificationCenter, NotificationCenterButton, NotificationToasts } from "./notifications";
 import { WorkbenchShell, useLayoutStore } from "./workbench";
 import { KeybindingEditor, KeybindingService, displayShortcut } from "./keybindings";
+import { LocalizationProvider, useMessage } from "./localization";
 
 export interface AppProps {
   client?: IpcClient;
@@ -41,12 +42,13 @@ function setNotificationsOpen(open: boolean) {
   else layout.setSecondarySidebarVisible(open);
 }
 
-function App({
+function LocalizedWorkbench({
   client = ipc,
   streamClient = stream,
   supervisorClient = supervisor,
   windowId = nativeWindowId(),
 }: AppProps) {
+  const t = useMessage();
   useTheme(streamClient, themeService);
   injectIconStyles();
   const notificationsOpen = useLayoutStore((layout) =>
@@ -102,13 +104,25 @@ function App({
           content:
             bindingState.pending.length > 0 ? (
               <span role="status">
-                {displayShortcut(bindingState.pending.join(" "), keybindings.platform)} ...
+                {t("keybindingsChordPending", {
+                  shortcut: displayShortcut(bindingState.pending.join(" "), keybindings.platform),
+                })}
               </span>
             ) : null,
         },
       ]}
       showLayoutControls={false}
     />
+  );
+}
+
+function App(props: AppProps) {
+  const client = props.client ?? ipc;
+  const streamClient = props.streamClient ?? stream;
+  return (
+    <LocalizationProvider client={client} stream={streamClient}>
+      <LocalizedWorkbench {...props} client={client} streamClient={streamClient} />
+    </LocalizationProvider>
   );
 }
 

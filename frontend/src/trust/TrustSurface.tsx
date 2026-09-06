@@ -3,6 +3,7 @@ import type { StreamClient } from "../stream";
 import type { WorkspaceListRequest } from "../generated/WorkspaceListRequest";
 import type { WorkspaceListResponse } from "../generated/WorkspaceListResponse";
 import { useEffect, useMemo, useState } from "react";
+import { useMessage } from "../localization";
 import { TrustClient } from "./client";
 import { TrustBanner } from "./TrustBanner";
 import { TrustManager } from "./TrustManager";
@@ -24,6 +25,7 @@ export function TrustSurface({
   streamClient: StreamClient;
   trustClient?: TrustClient;
 }) {
+  const t = useMessage();
   const resolvedTrustClient = useMemo(
     () => trustClient ?? new TrustClient(client),
     [trustClient, client],
@@ -37,13 +39,13 @@ export function TrustSurface({
   );
 
   if ((loading || discovered.loading) && !status) {
-    return <p role="status">Loading workspace trust…</p>;
+    return <p role="status">{t("trustLoading")}</p>;
   }
   if (discovered.error) {
-    return <p role="alert">Workspace trust roots unavailable: {discovered.error}</p>;
+    return <p role="alert">{t("trustRootsUnavailable", { error: discovered.error })}</p>;
   }
   if (error) {
-    return <p role="alert">Trust status unavailable: {error}</p>;
+    return <p role="alert">{t("trustStatusUnavailable", { error })}</p>;
   }
   if (!status) return null;
 

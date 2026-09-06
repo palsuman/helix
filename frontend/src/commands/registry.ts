@@ -8,6 +8,7 @@ import type { CommandRegisterResponse } from "../generated/CommandRegisterRespon
 import type { CommandUnregisterRequest } from "../generated/CommandUnregisterRequest";
 import type { CommandUnregisterResponse } from "../generated/CommandUnregisterResponse";
 import type { IpcClient } from "../ipc";
+import { message } from "../localization/message";
 
 export const COMMANDS = {
   list: "command.list",
@@ -77,7 +78,7 @@ export class CommandRegistry {
     if (response.target.kind === "renderer") {
       const handler = this.handlers.get(response.id);
       if (handler === undefined)
-        throw new Error(`No renderer handler registered for '${response.id}'.`);
+        throw new Error(message("commandRendererMissing", { command: response.id }));
       result = await handler(response.arguments);
     } else {
       result = await this.client.invoke(response.target.command, response.arguments, {

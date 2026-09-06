@@ -5,26 +5,28 @@
  * Plugin/theme-supplied IDs use the runtime placeholder path.
  */
 export type IconId =
-  "add" |
-  "bell" |
-  "clear-all" |
-  "close" |
-  "edit" |
-  "error" |
-  "file" |
-  "folder-open" |
-  "folder" |
-  "info" |
-  "keyboard" |
-  "placeholder" |
-  "record" |
-  "reset" |
-  "spinner" |
-  "split-horizontal" |
-  "split-vertical" |
-  "terminal" |
-  "warning"
-;
+  | "add"
+  | "bell"
+  | "clear-all"
+  | "close"
+  | "edit"
+  | "error"
+  | "file"
+  | "folder-open"
+  | "folder"
+  | "info"
+  | "keyboard"
+  | "panel-bottom"
+  | "panel-side"
+  | "placeholder"
+  | "record"
+  | "reset"
+  | "spinner"
+  | "split-horizontal"
+  | "split-vertical"
+  | "swap-horizontal"
+  | "terminal"
+  | "warning";
 
 /**
  * Icon size scale (REQ-ICON-001.3).
@@ -52,15 +54,24 @@ export const KNOWN_ICON_IDS = [
   "folder",
   "info",
   "keyboard",
+  "panel-bottom",
+  "panel-side",
   "placeholder",
   "record",
   "reset",
   "spinner",
   "split-horizontal",
   "split-vertical",
+  "swap-horizontal",
   "terminal",
   "warning",
 ] as const;
+
+/** Directional icons mirrored automatically when the document is RTL. */
+export const RTL_MIRRORED_ICON_IDS = [
+  "panel-side",
+  "swap-horizontal",
+] as const satisfies readonly IconId[];
 
 /**
  * Check if an icon ID is known at compile time.

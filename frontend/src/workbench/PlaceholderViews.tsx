@@ -1,11 +1,16 @@
+import { useMessage } from "../localization";
+
 export function ExplorerView() {
-  return <p className="workbench-placeholder">No folder is open.</p>;
+  const t = useMessage();
+  return <p className="workbench-placeholder">{t("workbenchNoFolder")}</p>;
 }
 
 export function RightPanelView() {
-  return <p className="workbench-placeholder">Right panel</p>;
+  const t = useMessage();
+  return <p className="workbench-placeholder">{t("workbenchRightPanel")}</p>;
 }
 
 export function ProblemsView() {
-  return <p className="workbench-placeholder">No problems detected.</p>;
+  const t = useMessage();
+  return <p className="workbench-placeholder">{t("workbenchNoProblems")}</p>;
 }

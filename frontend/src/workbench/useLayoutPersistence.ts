@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IpcClient } from "../ipc";
+import type { MessageKey } from "../localization/messages";
 import { getWindowLayout, setWindowLayout } from "../windows";
 import {
   DEFAULT_LAYOUT,
@@ -12,8 +13,11 @@ import {
 export type LayoutPersistenceStatus =
   | { kind: "loading" }
   | { kind: "ready" }
-  | { kind: "unavailable"; message: string }
-  | { kind: "reset"; message: string };
+  | {
+      kind: "unavailable" | "reset";
+      message: MessageKey;
+      values?: Record<string, string | number | Date>;
+    };
 
 const SAVE_DEBOUNCE_MS = 2_000;
 export const RECONCILE_INTERVAL_MS = 30_000;
@@ -64,7 +68,8 @@ export function useLayoutPersistence(
           dirty = true;
           setStatus({
             kind: "unavailable",
-            message: `Layout could not be saved. A later change will retry: ${String(error)}`,
+            message: "workbenchLayoutSaveFailed",
+            values: { error: String(error) },
           });
         },
       );
@@ -81,7 +86,7 @@ export function useLayoutPersistence(
           dirty = true;
           setStatus({
             kind: "reset",
-            message: "Saved layout was invalid and has been reset to the default layout.",
+            message: "workbenchLayoutInvalid",
           });
           if (timer !== undefined) clearTimeout(timer);
           timer = setTimeout(persist, SAVE_DEBOUNCE_MS);
@@ -94,7 +99,8 @@ export function useLayoutPersistence(
         if (controller.signal.aborted) return;
         setStatus({
           kind: "unavailable",
-          message: `Layout reconciliation failed; the current layout is unchanged: ${String(error)}`,
+          message: "workbenchLayoutReconcileFailed",
+          values: { error: String(error) },
         });
       }
     };
@@ -127,7 +133,7 @@ export function useLayoutPersistence(
           dirty = true;
           setStatus({
             kind: "reset",
-            message: "Saved layout was invalid and has been reset to the default layout.",
+            message: "workbenchLayoutInvalid",
           });
           timer = setTimeout(persist, SAVE_DEBOUNCE_MS);
           reconcileTimer = setInterval(() => void reconcile(), RECONCILE_INTERVAL_MS);
@@ -144,7 +150,8 @@ export function useLayoutPersistence(
         hydrated = true;
         setStatus({
           kind: "unavailable",
-          message: `Saved layout is unavailable; the default layout is in use: ${String(error)}`,
+          message: "workbenchLayoutUnavailable",
+          values: { error: String(error) },
         });
       });
 

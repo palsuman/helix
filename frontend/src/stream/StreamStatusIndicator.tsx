@@ -1,4 +1,5 @@
 import type { StreamStatus } from "./client";
+import { useMessage, type MessageKey } from "../localization";
 
 /**
  * Reconnection indicator (Task 1.4, REQ-ARCH-003 failure modes: "frontend
@@ -14,14 +15,6 @@ import type { StreamStatus } from "./client";
  * point these colours become semantic tokens.
  */
 
-const LABELS: Record<StreamStatus, string> = {
-  idle: "Stream idle",
-  connecting: "Connecting…",
-  open: "Live",
-  reconnecting: "Reconnecting…",
-  closed: "Stream closed",
-};
-
 const COLORS: Record<StreamStatus, string> = {
   idle: "#9ca3af",
   connecting: "#fbbf24",
@@ -30,7 +23,17 @@ const COLORS: Record<StreamStatus, string> = {
   closed: "#f87171",
 };
 
+const MESSAGE_KEYS = {
+  idle: "streamIdle",
+  connecting: "streamConnecting",
+  open: "streamLive",
+  reconnecting: "streamReconnecting",
+  closed: "streamClosed",
+} as const satisfies Record<StreamStatus, MessageKey>;
+
 export function StreamStatusIndicator({ status }: { status: StreamStatus }) {
+  const t = useMessage();
+  const label = t(MESSAGE_KEYS[status]);
   return (
     <span
       // "polite" rather than "assertive": a reconnect is worth announcing
@@ -48,7 +51,7 @@ export function StreamStatusIndicator({ status }: { status: StreamStatus }) {
           background: COLORS[status],
         }}
       />
-      {LABELS[status]}
+      {label}
     </span>
   );
 }

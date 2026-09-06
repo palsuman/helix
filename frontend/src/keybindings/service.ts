@@ -7,6 +7,7 @@ import type { KeybindingsSetRequest } from "../generated/KeybindingsSetRequest";
 import type { KeybindingContribution } from "../generated/KeybindingContribution";
 import type { IpcClient } from "../ipc";
 import { notify } from "../notifications";
+import { message } from "../localization/message";
 import { ContextKeyService } from "./context";
 import {
   KeybindingResolver,
@@ -70,7 +71,11 @@ export class KeybindingService {
     );
     const warnings = [...(document?.warnings ?? []), ...result.warnings];
     if (warnings.length && warnings.join("\n") !== this.store.getState().warnings.join("\n")) {
-      notify({ kind: "warning", source: "Keybindings", message: warnings.join(" ") });
+      notify({
+        kind: "warning",
+        source: message("keybindingsWarningSource"),
+        message: warnings.join(" "),
+      });
     }
     this.resolver.reset();
     this.store.setState({ document, bindings: result.bindings, warnings, error: null });
@@ -98,8 +103,7 @@ export class KeybindingService {
 
   async save(rules: KeybindingRule[]): Promise<void> {
     const current = this.store.getState().document;
-    if (!current?.writable)
-      throw new Error("Keybindings are unavailable or read-only. Reload after repairing the file.");
+    if (!current?.writable) throw new Error(message("keybindingsReadOnly"));
     ++this.refreshSequence;
     const document = await this.ipc.invoke<KeybindingsSetRequest, KeybindingsSnapshot>(
       "keybindings.set",
@@ -211,7 +215,11 @@ export class KeybindingService {
         .execute(result.binding.command, result.binding.args ?? null)
         .catch((error: unknown) => {
           this.store.setState({ error: String(error) });
-          notify({ kind: "error", source: "Keybindings", message: String(error) });
+          notify({
+            kind: "error",
+            source: message("keybindingsWarningSource"),
+            message: String(error),
+          });
         });
     }
     return true;

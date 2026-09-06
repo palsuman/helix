@@ -1,4 +1,5 @@
 import { Icon, type IconId } from "../icons";
+import { useLocalization, useMessage } from "../localization";
 import {
   type NotificationEntry,
   type NotificationKind,
@@ -22,13 +23,14 @@ function runAction(action: () => void | Promise<void>) {
 }
 
 function Progress({ entry }: { entry: NotificationEntry }) {
+  const t = useMessage();
   if (entry.kind !== "progress") return null;
   if (entry.progress === null || entry.progress === undefined) {
     return (
       <div
         className="notification-progress notification-progress--indeterminate"
         role="progressbar"
-        aria-label={`${entry.message} progress`}
+        aria-label={t("notificationProgress", { message: entry.message })}
       />
     );
   }
@@ -36,7 +38,7 @@ function Progress({ entry }: { entry: NotificationEntry }) {
     <div
       className="notification-progress"
       role="progressbar"
-      aria-label={`${entry.message} progress`}
+      aria-label={t("notificationProgress", { message: entry.message })}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={entry.progress}
@@ -53,6 +55,8 @@ function NotificationContent({
   entry: NotificationEntry;
   compact?: boolean;
 }) {
+  const t = useMessage();
+  const localization = useLocalization();
   const dismissToast = useNotificationStore((state) => state.dismissToast);
   return (
     <article
@@ -66,15 +70,18 @@ function NotificationContent({
       />
       <div className="notification-body">
         <div className="notification-heading">
-          <strong>{entry.message}</strong>
+          <strong dir="auto">{entry.message}</strong>
           <div className="notification-metadata">
-            <span>{entry.source}</span>
+            <span dir="auto">{entry.source}</span>
             {compact && (
               <time
                 dateTime={new Date(entry.createdAt).toISOString()}
-                title={new Date(entry.createdAt).toLocaleString()}
+                title={localization.formatDate(entry.createdAt, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
               >
-                {new Date(entry.createdAt).toLocaleTimeString([], {
+                {localization.formatTime(entry.createdAt, {
                   hour: "2-digit",
                   minute: "2-digit",
                 })}
@@ -92,7 +99,7 @@ function NotificationContent({
             ))}
             {entry.cancel !== undefined && (
               <button type="button" onClick={() => runAction(entry.cancel!)}>
-                Cancel
+                {t("notificationCancel")}
               </button>
             )}
           </div>
@@ -102,11 +109,11 @@ function NotificationContent({
         <button
           type="button"
           className="notification-dismiss"
-          aria-label="Dismiss notification"
-          title="Dismiss notification"
+          aria-label={t("notificationDismiss")}
+          title={t("notificationDismiss")}
           onClick={() => dismissToast(entry.id)}
         >
-          <Icon id="close" size="sm" label="Dismiss notification" />
+          <Icon id="close" size="sm" label={t("notificationDismiss")} />
         </button>
       )}
     </article>
@@ -114,6 +121,7 @@ function NotificationContent({
 }
 
 export function NotificationToasts({ centerVisible = false }: { centerVisible?: boolean }) {
+  const t = useMessage();
   const entries = useNotificationStore((state) => state.entries);
   const visibleEntries = centerVisible ? [] : entries.filter((entry) => entry.toastVisible);
   const latest = entries.at(-1);
@@ -121,9 +129,11 @@ export function NotificationToasts({ centerVisible = false }: { centerVisible?: 
   return (
     <>
       <div className="notification-live-region" role="status" aria-live="polite" aria-atomic="true">
-        {latest === undefined ? "" : `${latest.source}: ${latest.message}`}
+        {latest === undefined
+          ? ""
+          : t("notificationAnnouncement", { source: latest.source, message: latest.message })}
       </div>
-      <section className="notification-toasts" aria-label="Notifications">
+      <section className="notification-toasts" aria-label={t("notificationRegion")}>
         {visibleEntries.map((entry) => (
           <NotificationContent key={entry.id} entry={entry} />
         ))}
@@ -139,6 +149,8 @@ export function NotificationCenterButton({
   open: boolean;
   onToggle: () => void;
 }) {
+  const t = useMessage();
+  const localization = useLocalization();
   const entries = useNotificationStore((state) => state.entries);
   const doNotDisturb = useNotificationStore((state) => state.doNotDisturb);
 
@@ -147,17 +159,19 @@ export function NotificationCenterButton({
       id="notification-center-toggle"
       type="button"
       className={`notification-center-button${open ? " is-active" : ""}`}
-      aria-label={`Notification center, ${entries.length} notifications`}
-      title={doNotDisturb ? "Notifications (do not disturb)" : "Notifications"}
+      aria-label={t("notificationCenterCount", { count: entries.length })}
+      title={doNotDisturb ? t("notificationDndTitle") : t("notificationCenterTitle")}
       aria-expanded={open}
       aria-pressed={open}
       aria-controls={open ? "notification-center" : undefined}
       onClick={onToggle}
     >
-      <Icon id="bell" size="lg" label="Notifications" />
+      <Icon id="bell" size="lg" label={t("notificationCenterTitle")} />
       {entries.length > 0 && (
         <span className="notification-center-badge" aria-hidden="true">
-          {entries.length > 99 ? "99+" : entries.length}
+          {entries.length > 99
+            ? t("notificationBadgeOverflow", { count: 99 })
+            : localization.formatNumber(entries.length)}
         </span>
       )}
       {doNotDisturb && <span className="notification-center-muted" aria-hidden="true" />}
@@ -166,6 +180,7 @@ export function NotificationCenterButton({
 }
 
 export function NotificationCenter({ onClose }: { onClose: () => void }) {
+  const t = useMessage();
   const entries = useNotificationStore((state) => state.entries);
   const doNotDisturb = useNotificationStore((state) => state.doNotDisturb);
   const setDoNotDisturb = useNotificationStore((state) => state.setDoNotDisturb);
@@ -179,7 +194,7 @@ export function NotificationCenter({ onClose }: { onClose: () => void }) {
     <section
       id="notification-center"
       className="notification-center"
-      aria-label="Notification center"
+      aria-label={t("notificationCenterLandmark")}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !event.defaultPrevented) {
           event.preventDefault();
@@ -189,24 +204,24 @@ export function NotificationCenter({ onClose }: { onClose: () => void }) {
       }}
     >
       <header className="notification-center-header">
-        <h2>Notifications</h2>
+        <h2>{t("notificationCenterTitle")}</h2>
         <div className="notification-center-tools">
           <button
             type="button"
-            aria-label="Clear all notifications"
-            title="Clear all notifications"
+            aria-label={t("notificationClearAll")}
+            title={t("notificationClearAll")}
             onClick={clear}
             disabled={entries.length === 0}
           >
-            <Icon id="clear-all" label="Clear all notifications" />
+            <Icon id="clear-all" label={t("notificationClearAll")} />
           </button>
           <button
             type="button"
-            aria-label="Hide notification center"
-            title="Hide notification center"
+            aria-label={t("notificationHideCenter")}
+            title={t("notificationHideCenter")}
             onClick={hide}
           >
-            <Icon id="close" label="Hide notification center" />
+            <Icon id="close" label={t("notificationHideCenter")} />
           </button>
         </div>
       </header>
@@ -216,18 +231,18 @@ export function NotificationCenter({ onClose }: { onClose: () => void }) {
           checked={doNotDisturb}
           onChange={(event) => setDoNotDisturb(event.target.checked)}
         />
-        Do not disturb
+        {t("notificationDnd")}
       </label>
       <div
         className="notification-center-list"
         role="log"
-        aria-label="Notification history"
+        aria-label={t("notificationHistory")}
         aria-live="off"
       >
         {entries.length === 0 ? (
           <div className="notification-empty">
             <Icon id="bell" size="lg" />
-            <p>No notifications</p>
+            <p>{t("notificationEmpty")}</p>
           </div>
         ) : (
           [...entries]

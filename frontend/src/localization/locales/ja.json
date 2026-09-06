@@ -1,0 +1,14 @@
+{
+  "common.cancel": "キャンセル",
+  "common.clear": "クリア",
+  "common.close": "閉じる",
+  "common.dismiss": "閉じる",
+  "common.loading": "読み込み中...",
+  "common.reload": "再読み込み",
+  "common.remove": "削除",
+  "common.reset": "リセット",
+  "common.save": "保存",
+  "localization.items": "{count} 件",
+  "localization.welcome": "ようこそ、{name}",
+  "localization.restartRequired": "言語の変更は Helix の再起動後に反映されます。"
+}

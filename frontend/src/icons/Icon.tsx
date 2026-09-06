@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { IconId, IconSize } from "../generated/icons.gen";
-import { resolveIconId } from "../generated/icons.gen";
+import { resolveIconId, RTL_MIRRORED_ICON_IDS } from "../generated/icons.gen";
 
 /**
  * Icon component (Task 2.6, REQ-ICON-001).
@@ -32,11 +32,12 @@ export function Icon({ id, size = "md", label, spin = false, className = "" }: I
   const hasLabel = label !== undefined && label !== "";
   const ariaLabel = hasLabel ? label : undefined;
   const ariaHidden = !hasLabel;
+  const rtlMirror = (RTL_MIRRORED_ICON_IDS as readonly IconId[]).includes(resolvedId);
 
   return (
     <svg
       data-testid="icon"
-      className={`icon ${SIZE_CLASS[size]} ${spin ? "icon-spin" : ""} ${className}`}
+      className={`icon ${SIZE_CLASS[size]} ${spin ? "icon-spin" : ""} ${rtlMirror ? "icon-rtl-flip" : ""} ${className}`}
       aria-label={ariaLabel}
       aria-hidden={ariaHidden}
       role={hasLabel ? "img" : undefined}

@@ -1,4 +1,5 @@
 import type { TrustStatusResponse } from "../generated/TrustStatusResponse";
+import { useMessage } from "../localization";
 
 export function TrustPrompt({
   status,
@@ -9,6 +10,7 @@ export function TrustPrompt({
   onTrust: (path: string) => void;
   onRestrict: (path: string) => void;
 }) {
+  const t = useMessage();
   const path = status.pending_prompts[0];
   if (!path || !status.enabled || status.trust_everything) return null;
 
@@ -27,17 +29,14 @@ export function TrustPrompt({
       }}
     >
       <div style={{ maxWidth: "34rem", padding: "1.5rem", background: "#25253a" }}>
-        <h2 id="trust-prompt-title">Trust this folder?</h2>
-        <p>
-          Helix opened <code>{path}</code>. In Restricted mode, language servers, tasks, and other
-          workspace-supplied code will not run.
-        </p>
+        <h2 id="trust-prompt-title">{t("trustPromptTitle")}</h2>
+        <p>{t("trustPromptDescription", { path })}</p>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button type="button" onClick={() => onTrust(path)}>
-            Trust folder
+            {t("trustFolder")}
           </button>
           <button type="button" onClick={() => onRestrict(path)}>
-            Stay in Restricted mode
+            {t("trustStayRestricted")}
           </button>
         </div>
       </div>

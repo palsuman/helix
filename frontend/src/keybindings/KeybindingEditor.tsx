@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { Icon } from "../icons";
+import {
+  localizeCommand,
+  useLocalization,
+  useLocalizationSnapshot,
+  useMessage,
+} from "../localization";
 import { validateWhenClause } from "../commands/context";
 import {
   CHORD_TIMEOUT_MS,
@@ -22,6 +28,9 @@ interface Draft {
 }
 
 export function KeybindingEditor({ service }: { service: KeybindingService }) {
+  const t = useMessage();
+  const localization = useLocalization();
+  useLocalizationSnapshot();
   const state = useStore(service.store);
   const [query, setQuery] = useState("");
   const [commandFilter, setCommandFilter] = useState("");
@@ -37,7 +46,9 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
   const recorded = useRef<string[]>([]);
   const conflicts = findConflicts(state.bindings);
   const writable = !!state.document?.writable && !saving;
-  const titles = new Map(state.commands.map((command) => [command.id, command.title]));
+  const titles = new Map(
+    state.commands.map((command) => [command.id, localizeCommand(command, localization).title]),
+  );
   const commandIds = [
     ...new Set([
       ...state.commands.map((command) => command.id),
@@ -115,7 +126,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
   return (
     <section
       className="keybinding-editor"
-      aria-label="Keyboard Shortcuts"
+      aria-label={t("keybindingsTitle")}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !recording) {
           event.preventDefault();
@@ -127,33 +138,33 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
       <header className="keybinding-header">
         <h1>
           <Icon id="keyboard" />
-          Keyboard Shortcuts
+          {t("keybindingsTitle")}
         </h1>
         <button
           type="button"
           className="keybinding-icon-button"
-          aria-label="Close Keyboard Shortcuts"
-          title="Close Keyboard Shortcuts"
+          aria-label={t("keybindingsClose")}
+          title={t("keybindingsClose")}
           onClick={close}
         >
-          <Icon id="close" label="Close Keyboard Shortcuts" />
+          <Icon id="close" label={t("keybindingsClose")} />
         </button>
       </header>
       <div className="keybinding-filters">
         <input
           ref={searchRef}
           type="search"
-          aria-label="Search shortcuts"
-          placeholder="Search shortcuts"
+          aria-label={t("keybindingsSearch")}
+          placeholder={t("keybindingsSearch")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
         <select
-          aria-label="Filter by command"
+          aria-label={t("keybindingsFilterCommand")}
           value={commandFilter}
           onChange={(event) => setCommandFilter(event.target.value)}
         >
-          <option value="">All commands</option>
+          <option value="">{t("keybindingsAllCommands")}</option>
           {commandIds.map((command) => (
             <option key={command} value={command}>
               {titles.get(command) ?? command}
@@ -166,11 +177,11 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
             checked={conflictsOnly}
             onChange={(event) => setConflictsOnly(event.target.checked)}
           />
-          Conflicts only
+          {t("keybindingsConflictsOnly")}
         </label>
         <div className="keybinding-scheme">
           <select
-            aria-label="Keymap scheme"
+            aria-label={t("keybindingsScheme")}
             value={scheme}
             onChange={(event) => setScheme(event.target.value as KeybindingScheme)}
           >
@@ -183,7 +194,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
             disabled={!writable}
             onClick={() => void perform(() => service.import(scheme))}
           >
-            Import scheme
+            {t("keybindingsImportScheme")}
           </button>
         </div>
       </div>
@@ -191,7 +202,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
         <div role="alert" className="keybinding-error">
           {error ?? state.error}
           <button type="button" onClick={() => void service.refresh()}>
-            Reload
+            {t("keybindingsReload")}
           </button>
         </div>
       )}
@@ -203,7 +214,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
       {draft && (
         <form
           className="keybinding-draft"
-          aria-label={`Edit shortcut for ${draft.title}`}
+          aria-label={t("keybindingsEditForm", { title: draft.title })}
           onSubmit={(event) => {
             event.preventDefault();
             if (validDraft && writable)
@@ -212,11 +223,11 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
         >
           <h2>{draft.title}</h2>
           <label>
-            Shortcut
+            {t("keybindingsShortcut")}
             <div className="keybinding-record-field">
               <input
                 ref={shortcutRef}
-                aria-label="Shortcut"
+                aria-label={t("keybindingsShortcut")}
                 data-shortcut-recorder="true"
                 value={draft.key}
                 readOnly={recording}
@@ -237,36 +248,38 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
               <button
                 type="button"
                 className="keybinding-icon-button"
-                aria-label="Record shortcut"
-                title="Record shortcut"
+                aria-label={t("keybindingsRecord")}
+                title={t("keybindingsRecord")}
                 aria-pressed={recording}
                 onClick={record}
               >
-                <Icon id="record" label="Record shortcut" />
+                <Icon id="record" label={t("keybindingsRecord")} />
               </button>
             </div>
           </label>
           <label>
-            When
+            {t("keybindingsWhen")}
             <input
-              aria-label="When clause"
+              aria-label={t("keybindingsWhenClause")}
               value={draft.when}
               onChange={(event) => setDraft({ ...draft, when: event.target.value })}
             />
           </label>
-          {!validDraft && (
-            <p className="keybinding-validation">Enter a valid shortcut and when clause.</p>
-          )}
+          {!validDraft && <p className="keybinding-validation">{t("keybindingsInvalid")}</p>}
           {competing.length > 0 && (
-            <section aria-label="Conflicting shortcuts" className="keybinding-conflicts">
-              <h3>Competing commands</h3>
+            <section aria-label={t("keybindingsConflicting")} className="keybinding-conflicts">
+              <h3>{t("keybindingsCompetingCommands")}</h3>
               {competing.map((binding) => (
                 <div key={binding.id}>
                   <span>
                     {titles.get(binding.command) ?? binding.command}{" "}
                     <small>
-                      {binding.owner}
-                      {binding.when ? `: ${binding.when}` : ""}
+                      {binding.when
+                        ? t("keybindingsOwnerWhen", {
+                            owner: binding.owner,
+                            when: binding.when,
+                          })
+                        : binding.owner}
                     </small>
                   </span>
                   <button
@@ -274,7 +287,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
                     disabled={!writable}
                     onClick={() => void perform(() => service.remove(binding), false)}
                   >
-                    Remove competing shortcut
+                    {t("keybindingsRemoveCompeting")}
                   </button>
                 </div>
               ))}
@@ -282,7 +295,7 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
           )}
           <div className="keybinding-draft-actions">
             <button type="submit" disabled={!validDraft || !writable || recording}>
-              Save binding
+              {t("keybindingsSaveBinding")}
             </button>
             <button
               type="button"
@@ -292,20 +305,20 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
                 setDraft(null);
               }}
             >
-              Cancel
+              {t("commonCancel")}
             </button>
           </div>
         </form>
       )}
       <div className="keybinding-table-scroll">
-        <table aria-label="Keybindings">
+        <table aria-label={t("keybindingsTable")}>
           <thead>
             <tr>
-              <th>Command</th>
-              <th>Shortcut</th>
-              <th>When</th>
-              <th>Source</th>
-              <th>Actions</th>
+              <th>{t("keybindingsCommand")}</th>
+              <th>{t("keybindingsShortcut")}</th>
+              <th>{t("keybindingsWhen")}</th>
+              <th>{t("keybindingsSource")}</th>
+              <th>{t("keybindingsActions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -322,19 +335,25 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
               return (
                 <tr key={binding?.id ?? command}>
                   <td>
-                    <strong>{title}</strong>
+                    <strong dir="auto">{title}</strong>
                     <small>{command}</small>
                     {competitors.length > 0 && (
                       <div className="keybinding-row-conflicts">
                         <span>
-                          Competes with{" "}
-                          {competitors
-                            .map((candidate) => titles.get(candidate.command) ?? candidate.command)
-                            .join(", ")}
+                          {t("keybindingsCompetes", {
+                            commands: competitors
+                              .map(
+                                (candidate) => titles.get(candidate.command) ?? candidate.command,
+                              )
+                              .join(", "),
+                          })}
                         </span>
                         <span>
-                          Priority:{" "}
-                          {winner ? (titles.get(winner.command) ?? winner.command) : title}
+                          {t("keybindingsPriority", {
+                            command: winner
+                              ? (titles.get(winner.command) ?? winner.command)
+                              : title,
+                          })}
                         </span>
                       </div>
                     )}
@@ -343,14 +362,18 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
                     {binding ? (
                       <kbd>{displayShortcut(binding.key, service.platform)}</kbd>
                     ) : (
-                      <span className="keybinding-unassigned">Unassigned</span>
+                      <span className="keybinding-unassigned">{t("keybindingsUnassigned")}</span>
                     )}
                   </td>
                   <td>
-                    <code>{binding?.when ?? "Always"}</code>
+                    <code>{binding?.when ?? t("keybindingsAlways")}</code>
                   </td>
                   <td>
-                    {binding?.source ?? "default"}
+                    {binding?.source === "plugin"
+                      ? t("keybindingsPluginSource")
+                      : binding?.source === "user"
+                        ? t("keybindingsUserSource")
+                        : t("keybindingsDefaultSource")}
                     {binding?.source === "plugin" && <small>{binding.owner}</small>}
                   </td>
                   <td>
@@ -358,33 +381,33 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
                       <button
                         type="button"
                         className="keybinding-icon-button"
-                        aria-label={`Change shortcut for ${title}`}
-                        title={`Change shortcut for ${title}`}
+                        aria-label={t("keybindingsChange", { title })}
+                        title={t("keybindingsChange", { title })}
                         disabled={!writable}
                         onClick={() => edit(command, title, binding)}
                       >
-                        <Icon id="edit" label="Change shortcut" />
+                        <Icon id="edit" label={t("keybindingsChange", { title })} />
                       </button>
                       <button
                         type="button"
                         className="keybinding-icon-button"
-                        aria-label={`Reset shortcuts for ${title}`}
-                        title={`Reset shortcuts for ${title}`}
+                        aria-label={t("keybindingsReset", { title })}
+                        title={t("keybindingsReset", { title })}
                         disabled={!writable}
                         onClick={() => void perform(() => service.resetCommand(command))}
                       >
-                        <Icon id="reset" label="Reset shortcuts" />
+                        <Icon id="reset" label={t("keybindingsReset", { title })} />
                       </button>
                       {binding && (
                         <button
                           type="button"
                           className="keybinding-icon-button"
-                          aria-label={`Remove shortcut for ${title}`}
-                          title={`Remove shortcut for ${title}`}
+                          aria-label={t("keybindingsRemove", { title })}
+                          title={t("keybindingsRemove", { title })}
                           disabled={!writable}
                           onClick={() => void perform(() => service.remove(binding))}
                         >
-                          <Icon id="close" label="Remove shortcut" />
+                          <Icon id="close" label={t("keybindingsRemove", { title })} />
                         </button>
                       )}
                     </div>
@@ -396,14 +419,14 @@ export function KeybindingEditor({ service }: { service: KeybindingService }) {
         </table>
         {rows.length === 0 && (
           <p className="keybinding-empty">
-            {state.document ? "No matching shortcuts" : "Loading shortcuts..."}
+            {state.document ? t("keybindingsNoMatch") : t("keybindingsLoading")}
           </p>
         )}
       </div>
       <footer className="keybinding-footer">
-        <span>{rows.length} bindings</span>
+        <span>{t("keybindingsCount", { count: rows.length })}</span>
         <span title={state.document?.path ?? undefined}>
-          {saving ? "Saving..." : (state.document?.path ?? "User keybindings")}
+          {saving ? t("keybindingsSaving") : (state.document?.path ?? t("keybindingsUserFile"))}
         </span>
       </footer>
     </section>

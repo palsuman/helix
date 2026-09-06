@@ -3,6 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import babelParser from "@babel/eslint-parser";
+import { noUserVisibleLiterals } from "./eslint-rules/no-user-visible-literals.js";
 
 // Flat ESLint config (Task 1.1).
 //
@@ -18,8 +19,8 @@ import babelParser from "@babel/eslint-parser";
 // compiler. Re-add typescript-eslint to this config, and its type-aware
 // rules, once upstream ships TS7 support.
 //
-// The localization no-literal-string rule (Task 2.9) and icon-label rules
-// (Task 2.5) are added when those subsystems land.
+// Localization literals are enforced from Task 2.10 onward. Icon-label
+// enforcement remains part of the icon-system follow-up surface.
 export default [
   { ignores: ["dist", "src-tauri", "src/generated"] },
   js.configs.recommended,
@@ -38,6 +39,7 @@ export default [
       },
     },
     plugins: {
+      helix: { rules: { "no-user-visible-literals": noUserVisibleLiterals } },
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
     },
@@ -52,7 +54,12 @@ export default [
       // (`npm run typecheck`) with full type information instead.
       "no-unused-vars": "off",
       "no-undef": "off",
+      "helix/no-user-visible-literals": "error",
     },
+  },
+  {
+    files: ["src/**/*.{test,spec}.{ts,tsx}", "src/ipc/e2e.tsx", "src/localization/messages.ts"],
+    rules: { "helix/no-user-visible-literals": "off" },
   },
   {
     files: ["**/*.{js,jsx,mjs}"],

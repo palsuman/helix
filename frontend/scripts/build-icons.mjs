@@ -105,6 +105,7 @@ function buildSprite() {
 
   const symbols = [];
   const iconIds = [];
+  const rtlMirroredIconIds = [];
   let hasErrors = false;
 
   for (const file of files) {
@@ -124,6 +125,7 @@ function buildSprite() {
 
     const id = extractSymbolId(file);
     iconIds.push(id);
+    if (/data-rtl-mirror=["']true["']/.test(content)) rtlMirroredIconIds.push(id);
 
     const symbol = sanitizeSvg(content).trim()
       .replace(/^<svg\b/, `<symbol id="${id}"`)
@@ -178,6 +180,11 @@ export const ICON_SIZE_PX = {
 export const KNOWN_ICON_IDS = [
 ${iconIds.map((id) => `  "${id}",`).join("\n")}
 ] as const;
+
+/** Directional icons mirrored automatically when the document is RTL. */
+export const RTL_MIRRORED_ICON_IDS = [
+${rtlMirroredIconIds.map((id) => `  "${id}",`).join("\n")}
+] as const satisfies readonly IconId[];
 
 /**
  * Check if an icon ID is known at compile time.

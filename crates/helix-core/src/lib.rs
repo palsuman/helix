@@ -7,6 +7,7 @@
 pub mod container;
 pub mod error;
 pub mod health;
+pub mod text;
 
 pub use container::{
     HealthCheck, Lifetime, ManagedHandle, ManagedService, MockServiceProvider, Service,

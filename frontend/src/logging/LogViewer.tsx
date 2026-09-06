@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import type { LogLevel } from "../generated/LogLevel";
 import type { LogRecord } from "../generated/LogRecord";
 import { type IpcClient, ipc, isIpcError } from "../ipc";
+import { useMessage } from "../localization";
 import { type StreamClient, stream } from "../stream";
 import { LOG_LEVELS, exportLogs } from "./commands";
 import { formatRecord } from "./filter";
@@ -68,6 +69,7 @@ export function LogViewer({
   clipboard,
   onExport = downloadFile,
 }: LogViewerProps) {
+  const t = useMessage();
   const viewer = useLogViewer({ client, streamClient, maxEntries });
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -75,30 +77,30 @@ export function LogViewer({
     async (record: LogRecord) => {
       const target = clipboard ?? globalThis.navigator?.clipboard;
       if (!target) {
-        setNotice("Copying is unavailable in this environment.");
+        setNotice(t("logsCopyUnavailable"));
         return;
       }
       try {
         await target.writeText(formatRecord(record));
-        setNotice("Entry copied.");
+        setNotice(t("logsCopied"));
       } catch {
-        setNotice("The entry could not be copied.");
+        setNotice(t("logsCopyFailed"));
       }
     },
-    [clipboard],
+    [clipboard, t],
   );
 
   const exportFiltered = useCallback(async () => {
     try {
       const result = await exportLogs(client, viewer.query);
       onExport(result.suggested_file_name, result.content);
-      setNotice(`Exported ${result.entry_count} entr${result.entry_count === 1 ? "y" : "ies"}.`);
+      setNotice(t("logsExported", { count: result.entry_count }));
     } catch (cause: unknown) {
       setNotice(
-        isIpcError(cause) ? `Export failed — ${cause.message}` : `Export failed — ${String(cause)}`,
+        t("logsExportFailed", { error: isIpcError(cause) ? cause.message : String(cause) }),
       );
     }
-  }, [client, onExport, viewer.query]);
+  }, [client, onExport, t, viewer.query]);
 
   return (
     <section
@@ -109,20 +111,20 @@ export function LogViewer({
         gap: "0.5rem",
         fontFamily: "system-ui, sans-serif",
         color: "#e5e7eb",
-        textAlign: "left",
+        textAlign: "start",
       }}
     >
       <h2 id="log-viewer-heading" style={{ fontSize: "1rem", margin: 0 }}>
-        Logs
+        {t("logsTitle")}
       </h2>
 
       <div
         style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", alignItems: "flex-end" }}
         role="group"
-        aria-label="Log filters"
+        aria-label={t("logsFilters")}
       >
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-level">Minimum level</label>
+          <label htmlFor="log-level">{t("logsMinimumLevel")}</label>
           <select
             id="log-level"
             value={viewer.filter.minLevel}
@@ -130,7 +132,7 @@ export function LogViewer({
               viewer.setFilter({ minLevel: event.target.value as LogLevel | "" })
             }
           >
-            <option value="">All levels</option>
+            <option value="">{t("logsAllLevels")}</option>
             {LOG_LEVELS.map((level) => (
               <option key={level} value={level}>
                 {level}
@@ -140,13 +142,13 @@ export function LogViewer({
         </span>
 
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-source">Source</label>
+          <label htmlFor="log-source">{t("logsSource")}</label>
           <select
             id="log-source"
             value={viewer.filter.source}
             onChange={(event) => viewer.setFilter({ source: event.target.value })}
           >
-            <option value="">All sources</option>
+            <option value="">{t("logsAllSources")}</option>
             {viewer.sources.map((source) => (
               <option key={source} value={source}>
                 {source}
@@ -156,45 +158,45 @@ export function LogViewer({
         </span>
 
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-search">Search</label>
+          <label htmlFor="log-search">{t("logsSearch")}</label>
           <input
             id="log-search"
             type="search"
             value={viewer.filter.search}
-            placeholder="message, source, or field"
+            placeholder={t("logsSearchPlaceholder")}
             onChange={(event) => viewer.setFilter({ search: event.target.value })}
           />
         </span>
 
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-from">From (UTC)</label>
+          <label htmlFor="log-from">{t("logsFromUtc")}</label>
           <input
             id="log-from"
             type="text"
             value={viewer.filter.fromTs}
-            placeholder="2026-01-01T10:00"
+            placeholder={t("logsFromPlaceholder")}
             onChange={(event) => viewer.setFilter({ fromTs: event.target.value })}
           />
         </span>
 
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-to">To (UTC)</label>
+          <label htmlFor="log-to">{t("logsToUtc")}</label>
           <input
             id="log-to"
             type="text"
             value={viewer.filter.toTs}
-            placeholder="2026-01-01T11:00"
+            placeholder={t("logsToPlaceholder")}
             onChange={(event) => viewer.setFilter({ toTs: event.target.value })}
           />
         </span>
 
         <span style={{ display: "flex", flexDirection: "column" }}>
-          <label htmlFor="log-correlation">Correlation ID</label>
+          <label htmlFor="log-correlation">{t("logsCorrelation")}</label>
           <input
             id="log-correlation"
             type="text"
             value={viewer.filter.correlationId}
-            placeholder="cmd-…"
+            placeholder={t("logsCorrelationPlaceholder")}
             onChange={(event) => viewer.setFilter({ correlationId: event.target.value })}
           />
         </span>
@@ -206,30 +208,32 @@ export function LogViewer({
             checked={viewer.follow}
             onChange={(event) => viewer.setFollow(event.target.checked)}
           />
-          <label htmlFor="log-follow">Follow tail</label>
+          <label htmlFor="log-follow">{t("logsFollow")}</label>
         </span>
 
         <button type="button" onClick={() => void exportFiltered()}>
-          Export filtered set
+          {t("logsExport")}
         </button>
         <button type="button" onClick={viewer.resetFilter}>
-          Clear filters
+          {t("logsClearFilters")}
         </button>
       </div>
 
       <p style={{ margin: 0, fontSize: "0.85rem", color: "#9ca3af" }}>
-        {viewer.status === "loading" && "Loading entries…"}
+        {viewer.status === "loading" && t("logsLoading")}
         {viewer.status === "ready" &&
-          `Showing ${viewer.entries.length} of ${viewer.matched} matching ${
-            viewer.matched === 1 ? "entry" : "entries"
-          }${viewer.evicted > 0 ? ` · ${viewer.evicted} older entries no longer retained` : ""}`}
+          t("logsShowing", {
+            shown: viewer.entries.length,
+            matched: viewer.matched,
+            evicted: viewer.evicted,
+          })}
       </p>
 
       {viewer.status === "error" && viewer.error !== null && (
         <p role="alert">
           {viewer.error}{" "}
           <button type="button" onClick={viewer.refresh}>
-            Retry
+            {t("logsRetry")}
           </button>
         </p>
       )}
@@ -245,7 +249,7 @@ export function LogViewer({
         // stream unusable with a screen reader.
         role="log"
         aria-live="off"
-        aria-label="Log entries"
+        aria-label={t("logsEntries")}
         style={{
           listStyle: "none",
           margin: 0,
@@ -272,27 +276,31 @@ export function LogViewer({
             <span style={{ color: LEVEL_COLORS[record.level] ?? "#e5e7eb" }}>
               {record.level.toUpperCase()}
             </span>
-            <span style={{ color: "#c4b5fd" }}>{record.source}</span>
+            <span dir="auto" style={{ color: "#c4b5fd" }}>
+              {record.source}
+            </span>
             {record.correlation_id !== null && (
               <span style={{ color: "#6ee7b7" }}>{record.correlation_id}</span>
             )}
-            <span style={{ flex: 1 }}>{record.message}</span>
+            <span dir="auto" style={{ flex: 1 }}>
+              {record.message}
+            </span>
             {Object.keys(record.fields).length > 0 && (
               <span style={{ color: "#9ca3af" }}>{JSON.stringify(record.fields)}</span>
             )}
             <button
               type="button"
-              aria-label={`Copy entry: ${record.message}`}
+              aria-label={t("logsCopyEntry", { message: record.message })}
               onClick={() => void copyEntry(record)}
             >
-              Copy
+              {t("logsCopy")}
             </button>
           </li>
         ))}
       </ul>
 
       {viewer.status === "ready" && viewer.entries.length === 0 && (
-        <p style={{ margin: 0 }}>No entries match the current filters.</p>
+        <p style={{ margin: 0 }}>{t("logsNoEntries")}</p>
       )}
     </section>
   );

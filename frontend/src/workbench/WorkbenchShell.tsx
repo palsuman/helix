@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import type { IpcClient } from "../ipc";
+import { Icon } from "../icons";
+import { useMessage } from "../localization";
 import { PanelErrorBoundary } from "./PanelErrorBoundary";
 import {
   PANEL_MAX,
@@ -62,23 +64,17 @@ interface WorkbenchShellProps {
   overlay?: ReactNode;
 }
 
-const defaultActivities: readonly ActivityRegistration[] = [
-  { id: "explorer", label: "Explorer", icon: "◇", view: <LazyExplorer /> },
-  { id: "search", label: "Search", icon: "⌕", view: <LazyExplorer /> },
-  { id: "source-control", label: "Source Control", icon: "⑂", view: <LazyExplorer /> },
-];
-
-const defaultPanels: readonly PanelRegistration[] = [
-  { id: "problems", label: "Problems", content: <LazyProblems /> },
-  { id: "output", label: "Output", content: <LazyProblems /> },
-];
-
-const loading = <p className="workbench-placeholder">Loading…</p>;
-
 function IsolatedPanel({ name, children }: { name: string; children: ReactNode }) {
+  const t = useMessage();
   return (
-    <PanelErrorBoundary name={name}>
-      <Suspense fallback={loading}>{children}</Suspense>
+    <PanelErrorBoundary
+      name={name}
+      failedLabel={t("workbenchPanelFailed", { name })}
+      reloadLabel={t("workbenchReloadPanel")}
+    >
+      <Suspense fallback={<p className="workbench-placeholder">{t("workbenchLoading")}</p>}>
+        {children}
+      </Suspense>
     </PanelErrorBoundary>
   );
 }
@@ -87,8 +83,8 @@ export function WorkbenchShell({
   client,
   windowId = "main",
   titleBar,
-  activities = defaultActivities,
-  panels = defaultPanels,
+  activities,
+  panels,
   leftPanel,
   rightPanel,
   leftActivityRail,
@@ -100,24 +96,57 @@ export function WorkbenchShell({
   showLayoutControls = true,
   overlay,
 }: WorkbenchShellProps) {
+  const t = useMessage();
+  const resolvedActivities = useMemo(
+    () =>
+      activities ?? [
+        { id: "explorer", label: t("workbenchExplorer"), icon: "◇", view: <LazyExplorer /> },
+        { id: "search", label: t("workbenchSearch"), icon: "⌕", view: <LazyExplorer /> },
+        {
+          id: "source-control",
+          label: t("workbenchSourceControl"),
+          icon: "⑂",
+          view: <LazyExplorer />,
+        },
+      ],
+    [activities, t],
+  );
+  const resolvedPanels = useMemo(
+    () =>
+      panels ?? [
+        { id: "problems", label: t("workbenchProblems"), content: <LazyProblems /> },
+        { id: "output", label: t("workbenchOutput"), content: <LazyProblems /> },
+      ],
+    [panels, t],
+  );
   const layout = useLayoutStore();
   const persistence = useLayoutPersistence(client, windowId);
-  const activeActivity = activities.find((activity) => activity.id === layout.activeActivity);
-  const activePanel = panels.find((panel) => panel.id === layout.activePanel);
+  const activeActivity = resolvedActivities.find(
+    (activity) => activity.id === layout.activeActivity,
+  );
+  const activePanel = resolvedPanels.find((panel) => panel.id === layout.activePanel);
   const primaryOnLeft = layout.primarySidebarPosition === "left";
 
   useEffect(() => {
     if (layout.activeProfile === null) return;
     useLayoutStore.getState().reconcileActiveProfileViews({
-      activityIds: activities.map((activity) => activity.id),
-      panelIds: panels.map((panel) => panel.id),
+      activityIds: resolvedActivities.map((activity) => activity.id),
+      panelIds: resolvedPanels.map((panel) => panel.id),
     });
-  }, [activities, layout.activeActivity, layout.activePanel, layout.activeProfile, panels]);
+  }, [
+    layout.activeActivity,
+    layout.activePanel,
+    layout.activeProfile,
+    resolvedActivities,
+    resolvedPanels,
+  ]);
 
   const renderEditor = (groupId: string, index: number) => {
     if (typeof editor === "function") return editor(groupId, index);
     if (index === 0 && editor !== undefined) return editor;
-    return <p className="workbench-placeholder">Editor group {index + 1}</p>;
+    return (
+      <p className="workbench-placeholder">{t("workbenchEditorGroup", { number: index + 1 })}</p>
+    );
   };
 
   const editorGridStyle = {
@@ -132,6 +161,7 @@ export function WorkbenchShell({
   } satisfies CSSProperties;
 
   const renderActivityRail = (side: "left" | "right") => {
+    const sideLabel = side === "left" ? t("workbenchLeftSideLower") : t("workbenchRightSideLower");
     const isPrimarySide = layout.primarySidebarPosition === side;
     const visible = isPrimarySide ? layout.primarySidebarVisible : layout.secondarySidebarVisible;
     const extension =
@@ -140,10 +170,10 @@ export function WorkbenchShell({
     return (
       <nav
         className={`workbench-activity workbench-activity--${side} workbench-frame-surface`}
-        aria-label={`${side === "left" ? "Left" : "Right"} activity rail`}
+        aria-label={side === "left" ? t("workbenchLeftRail") : t("workbenchRightRail")}
       >
         {isPrimarySide &&
-          activities.map((activity) => (
+          resolvedActivities.map((activity) => (
             <button
               type="button"
               key={activity.id}
@@ -161,28 +191,34 @@ export function WorkbenchShell({
             <div className="workbench-activity-spacer" />
             <button
               type="button"
-              aria-label={`${visible ? "Hide" : "Show"} ${side} panel`}
+              aria-label={t(visible ? "workbenchHidePanel" : "workbenchShowPanel", {
+                side: sideLabel,
+              })}
               aria-pressed={visible}
               onClick={() => {
                 if (isPrimarySide) layout.setPrimarySidebarVisible(!visible);
                 else layout.setSecondarySidebarVisible(!visible);
               }}
             >
-              <span aria-hidden="true">▯</span>
+              <Icon id="panel-side" />
             </button>
             {isPrimarySide && (
               <button
                 type="button"
-                aria-label="Swap left and right panels"
+                aria-label={t("workbenchSwapPanels")}
                 onClick={() => layout.setPrimarySidebarPosition(primaryOnLeft ? "right" : "left")}
               >
-                <span aria-hidden="true">⇄</span>
+                <Icon id="swap-horizontal" />
               </button>
             )}
             {side === "right" && (
               <button
                 type="button"
-                aria-label={layout.panelVisible ? "Move bottom panel" : "Show bottom panel"}
+                aria-label={
+                  layout.panelVisible
+                    ? t("workbenchMoveBottomPanel")
+                    : t("workbenchShowBottomPanel")
+                }
                 onClick={() => {
                   if (layout.panelVisible) {
                     layout.setPanelPosition(layout.panelPosition === "bottom" ? "right" : "bottom");
@@ -191,7 +227,7 @@ export function WorkbenchShell({
                   }
                 }}
               >
-                <span aria-hidden="true">▤</span>
+                <Icon id="panel-bottom" />
               </button>
             )}
           </>
@@ -201,6 +237,7 @@ export function WorkbenchShell({
   };
 
   const renderSidePanel = (side: "left" | "right") => {
+    const sideLabel = side === "left" ? t("workbenchLeftSide") : t("workbenchRightSide");
     const isPrimarySide = layout.primarySidebarPosition === side;
     const visible = isPrimarySide ? layout.primarySidebarVisible : layout.secondarySidebarVisible;
     if (!visible) return null;
@@ -214,7 +251,7 @@ export function WorkbenchShell({
       ) : (
         <LazyRightPanel />
       );
-    const name = `${side === "left" ? "Left" : "Right"} panel`;
+    const name = t("workbenchPanelName", { side: sideLabel });
     return (
       <aside
         className={`workbench-card workbench-sidebar workbench-sidebar--${side}`}
@@ -229,6 +266,7 @@ export function WorkbenchShell({
   };
 
   const renderSideResizeHandle = (side: "left" | "right") => {
+    const sideLabel = side === "left" ? t("workbenchLeftSideLower") : t("workbenchRightSideLower");
     const isPrimarySide = layout.primarySidebarPosition === side;
     const visible = isPrimarySide ? layout.primarySidebarVisible : layout.secondarySidebarVisible;
     if (!visible) return null;
@@ -236,7 +274,7 @@ export function WorkbenchShell({
     return (
       <ResizeHandle
         axis="horizontal"
-        label={`Resize ${side} panel`}
+        label={t("workbenchResizePanel", { side: sideLabel })}
         value={isPrimarySide ? layout.primarySidebarSize : layout.secondarySidebarSize}
         min={isPrimarySide ? PRIMARY_SIDEBAR_MIN : SECONDARY_SIDEBAR_MIN}
         max={isPrimarySide ? PRIMARY_SIDEBAR_MAX : SECONDARY_SIDEBAR_MAX}
@@ -263,7 +301,7 @@ export function WorkbenchShell({
   );
 
   const editorArea = (
-    <section className="workbench-card workbench-editor" aria-label="Editor area">
+    <section className="workbench-card workbench-editor" aria-label={t("workbenchEditorArea")}>
       {showLayoutControls && (
         <div className="workbench-editor-actions">
           <button
@@ -271,14 +309,14 @@ export function WorkbenchShell({
             onClick={() => layout.splitEditor("horizontal")}
             disabled={layout.editorGroups.length >= 4}
           >
-            Split right
+            {t("workbenchSplitRight")}
           </button>
           <button
             type="button"
             onClick={() => layout.splitEditor("vertical")}
             disabled={layout.editorGroups.length >= 4}
           >
-            Split down
+            {t("workbenchSplitDown")}
           </button>
         </div>
       )}
@@ -287,20 +325,26 @@ export function WorkbenchShell({
           <article
             key={groupId}
             className={groupId === layout.activeEditorGroup ? "is-active" : undefined}
-            aria-label={`Editor group ${index + 1}`}
+            aria-label={t("workbenchEditorGroup", { number: index + 1 })}
             onFocusCapture={() => layout.setActiveEditorGroup(groupId)}
           >
             {layout.editorGroups.length > 1 && (
               <button
                 type="button"
                 className="workbench-editor-close"
-                aria-label={`Close editor group ${index + 1}`}
+                aria-label={t("workbenchCloseEditorGroup", { number: index + 1 })}
                 onClick={() => layout.closeEditorGroup(groupId)}
               >
-                ×
+                <Icon
+                  id="close"
+                  size="sm"
+                  label={t("workbenchCloseEditorGroup", {
+                    number: index + 1,
+                  })}
+                />
               </button>
             )}
-            <IsolatedPanel name={`Editor group ${index + 1}`}>
+            <IsolatedPanel name={t("workbenchEditorGroup", { number: index + 1 })}>
               {renderEditor(groupId, index)}
             </IsolatedPanel>
           </article>
@@ -312,7 +356,7 @@ export function WorkbenchShell({
   const panelArea = layout.panelVisible && (
     <section
       className="workbench-card workbench-panel"
-      aria-label="Panel"
+      aria-label={t("workbenchPanel")}
       style={
         layout.panelPosition === "bottom"
           ? { height: layout.panelSize }
@@ -321,8 +365,8 @@ export function WorkbenchShell({
     >
       {activePanel !== undefined && (
         <>
-          <div className="workbench-panel-tabs" role="tablist" aria-label="Panel tabs">
-            {panels.map((panel) => (
+          <div className="workbench-panel-tabs" role="tablist" aria-label={t("workbenchPanelTabs")}>
+            {resolvedPanels.map((panel) => (
               <button
                 type="button"
                 role="tab"
@@ -337,10 +381,10 @@ export function WorkbenchShell({
               <button
                 type="button"
                 className="workbench-panel-close"
-                aria-label="Close panel"
+                aria-label={t("workbenchClosePanel")}
                 onClick={() => layout.setPanelVisible(false)}
               >
-                ×
+                <Icon id="close" size="sm" label={t("workbenchClosePanel")} />
               </button>
             )}
           </div>
@@ -362,7 +406,7 @@ export function WorkbenchShell({
       {layout.panelVisible && (
         <ResizeHandle
           axis={layout.panelPosition === "bottom" ? "vertical" : "horizontal"}
-          label="Resize panel"
+          label={t("workbenchResizeBottomPanel")}
           value={layout.panelSize}
           min={PANEL_MIN}
           max={PANEL_MAX}
@@ -379,20 +423,20 @@ export function WorkbenchShell({
       {overlay}
       {(persistence.kind === "reset" || persistence.kind === "unavailable") && (
         <div className="workbench-notice" role="status">
-          {persistence.message}
+          {t(persistence.message, persistence.values)}
         </div>
       )}
       {layout.profileNotice !== null && (
         <div className="workbench-notice" role="status">
           <span>{layout.profileNotice}</span>
           <button type="button" onClick={layout.dismissProfileNotice}>
-            Dismiss
+            {t("commonDismiss")}
           </button>
         </div>
       )}
       <header
         className="workbench-titlebar workbench-frame-surface"
-        aria-label="Title bar"
+        aria-label={t("workbenchTitleBar")}
         data-tauri-drag-region
       >
         {titleBar}
@@ -402,7 +446,10 @@ export function WorkbenchShell({
         {central}
         {rightRegion}
       </div>
-      <footer className="workbench-status workbench-frame-surface" aria-label="Status bar">
+      <footer
+        className="workbench-status workbench-frame-surface"
+        aria-label={t("workbenchStatusBar")}
+      >
         <div>
           {statusLeft.map((item) => (
             <span key={item.id}>{item.content}</span>

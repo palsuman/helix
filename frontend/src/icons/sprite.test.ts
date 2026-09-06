@@ -27,6 +27,7 @@ describe("generated icon sprite", () => {
       "stroke-width",
       "stroke-linecap",
       "stroke-linejoin",
+      "data-rtl-mirror",
     ]) {
       const value = source.getAttribute(attribute);
       if (value !== null) expect(symbol?.getAttribute(attribute)).toBe(value);

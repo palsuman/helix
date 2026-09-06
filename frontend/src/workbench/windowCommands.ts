@@ -2,6 +2,7 @@ import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { InvokeFn } from "../ipc";
 import { ipc } from "../ipc";
 import { HOST_WINDOW_COMMANDS, WindowClient } from "../windows";
+import { message } from "../localization/message";
 
 export const WINDOW_HOST_COMMANDS = [
   { id: "workbench.action.newWindow", title: "New Window" },
@@ -32,7 +33,7 @@ export async function executeWindowHostCommand(
       return client.newWindow();
     case "workbench.action.openFolderInNewWindow":
       if (args.path === undefined) {
-        throw new Error("Open Folder in New Window requires 'path'.");
+        throw new Error(message("workbenchOpenFolderPathRequired"));
       }
       return client.openFolder(args.path, true);
     case "workbench.action.duplicateWorkspaceInNewWindow":

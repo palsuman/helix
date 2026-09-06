@@ -1,5 +1,7 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family:
+    Inter, "SF Pro Text", "Segoe UI", "Noto Sans", "Noto Sans Arabic", "Noto Sans CJK JP",
+    ui-sans-serif, system-ui, sans-serif;
   color: var(--helix-foreground, #dfe1e5);
   background: var(--helix-frame-background, #2b2d30);
   color-scheme: dark;
@@ -21,6 +23,18 @@ body,
 button {
   color: inherit;
   font: inherit;
+}
+
+.unicode-warning-bidi-control {
+  text-decoration: underline double var(--helix-error-foreground, #f05f57);
+}
+
+.unicode-warning-invisible {
+  text-decoration: underline dotted var(--helix-warning-foreground, #e3b341);
+}
+
+.unicode-warning-confusable {
+  text-decoration: underline wavy var(--helix-warning-foreground, #e3b341);
 }
 
 .workbench {
@@ -146,7 +160,7 @@ button {
   position: absolute;
   top: 8px;
   bottom: 8px;
-  left: -3px;
+  inset-inline-start: -3px;
   width: 3px;
   border-radius: 3px;
   background: var(--workbench-accent);
@@ -154,8 +168,7 @@ button {
 }
 
 .workbench-activity--right button.is-active::before {
-  right: -3px;
-  left: auto;
+  inset-inline: auto -3px;
 }
 
 .workbench-activity button:focus-visible,
@@ -187,7 +200,7 @@ button {
   position: absolute;
   z-index: 2;
   top: 6px;
-  right: 8px;
+  inset-inline-end: 8px;
   display: flex;
   gap: 4px;
 }
@@ -229,7 +242,7 @@ button {
   position: absolute;
   z-index: 3;
   top: 32px;
-  right: 8px;
+  inset-inline-end: 8px;
 }
 
 .workbench-panel {
@@ -263,7 +276,7 @@ button {
 }
 
 .workbench-panel-close {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .workbench-panel-content {
@@ -291,25 +304,25 @@ button {
 }
 
 .workbench-side-region > .workbench-resize--horizontal:first-child {
-  left: calc(-1 * var(--workbench-card-gap));
+  inset-inline-start: calc(-1 * var(--workbench-card-gap));
 }
 
 .workbench-side-region > .workbench-resize--horizontal:last-child {
-  right: calc(-1 * var(--workbench-card-gap));
+  inset-inline-end: calc(-1 * var(--workbench-card-gap));
 }
 
 .workbench-central > .workbench-resize--horizontal {
   top: 0;
-  right: min(var(--workbench-panel-size), 45%);
+  inset-inline-end: min(var(--workbench-panel-size), 45%);
   bottom: 0;
   width: var(--workbench-card-gap);
   cursor: col-resize;
 }
 
 .workbench-central > .workbench-resize--vertical {
-  right: 0;
+  inset-inline-end: 0;
   bottom: min(var(--workbench-panel-size), 45%);
-  left: 0;
+  inset-inline-start: 0;
   height: var(--workbench-card-gap);
   cursor: row-resize;
 }
@@ -359,7 +372,7 @@ button {
   position: absolute;
   z-index: 20;
   top: calc(var(--workbench-titlebar-height) + var(--workbench-card-gap));
-  left: 50%;
+  inset-inline-start: 50%;
   max-width: 620px;
   transform: translateX(-50%);
   border: 1px solid var(--helix-notice-border, #8a6d1d);
@@ -371,7 +384,7 @@ button {
 }
 
 .workbench-notice button {
-  margin-left: 10px;
+  margin-inline-start: 10px;
   border: 1px solid currentcolor;
   border-radius: 4px;
   background: transparent;

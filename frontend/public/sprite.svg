@@ -42,6 +42,14 @@
   <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
   <path d="M4 6h.1M6.5 6h.1M9 6h.1M11.5 6h.1M4 8.5h.1M6.5 8.5h.1M9 8.5h.1M11.5 8.5h.1M5.5 10.5h5"/>
 </symbol>
+  <symbol id="panel-bottom" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="2" y="2.5" width="12" height="11" rx="1.5"/>
+  <path d="M2 9.5h12"/>
+</symbol>
+  <symbol id="panel-side" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-rtl-mirror="true">
+  <rect x="2" y="2.5" width="12" height="11" rx="1.5"/>
+  <path d="M5.5 2.5v11"/>
+</symbol>
   <symbol id="placeholder" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
   <rect x="2" y="2" width="12" height="12" rx="2"/>
   <path d="M6 6h4v4H6z"/>
@@ -64,6 +72,9 @@
   <path d="M3 12V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
   <path d="M7 8h6"/>
   <path d="M10 5v6"/>
+</symbol>
+  <symbol id="swap-horizontal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-rtl-mirror="true">
+  <path d="M2 5h10m-3-3 3 3-3 3M14 11H4m3-3-3 3 3 3"/>
 </symbol>
   <symbol id="terminal" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
   <path d="M5 11V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v6"/>

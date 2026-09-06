@@ -381,7 +381,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: rebind Format Document, hit a deliberate conflict and see it flagged, then import the VS Code scheme and confirm familiar shortcuts work_
     - _Requirements: REQ-CONFIG-002_
 
-  - [ ] 2.10 Establish localization infrastructure
+  - [x] 2.10 Establish localization infrastructure
     - Message catalog module with ICU MessageFormat interpolation and pluralization
     - Lint rule failing the build on any user-visible literal string in a component
     - Catalog loading by OS locale with a `helix.locale` override

@@ -1,0 +1,542 @@
+import { defineMessages } from "react-intl";
+
+export const messages = defineMessages({
+  commonCancel: { id: "common.cancel", defaultMessage: "Cancel" },
+  commonClear: { id: "common.clear", defaultMessage: "Clear" },
+  commonClose: { id: "common.close", defaultMessage: "Close" },
+  commonDismiss: { id: "common.dismiss", defaultMessage: "Dismiss" },
+  commonLoading: { id: "common.loading", defaultMessage: "Loading..." },
+  commonReload: { id: "common.reload", defaultMessage: "Reload" },
+  commonRemove: { id: "common.remove", defaultMessage: "Remove" },
+  commonReset: { id: "common.reset", defaultMessage: "Reset" },
+  commonRetry: { id: "common.retry", defaultMessage: "Retry" },
+  commonSave: { id: "common.save", defaultMessage: "Save" },
+
+  localizationItems: {
+    id: "localization.items",
+    defaultMessage: "{count, plural, =0 {No items} one {# item} other {# items}}",
+  },
+  localizationWelcome: {
+    id: "localization.welcome",
+    defaultMessage: "Welcome, {name}",
+  },
+  localizationRestartRequired: {
+    id: "localization.restartRequired",
+    defaultMessage: "Language changes take effect after restarting Helix.",
+  },
+  localizationUnsupportedLocale: {
+    id: "localization.unsupportedLocale",
+    defaultMessage: "The requested language {locale} is not installed. English is being used.",
+  },
+  localizationCatalogError: {
+    id: "localization.catalogError",
+    defaultMessage: "The {locale} message catalog could not be loaded. English is being used.",
+  },
+  localizationSource: { id: "localization.source", defaultMessage: "Localization" },
+  localizationMissing: {
+    id: "localization.missing",
+    defaultMessage: "Missing translation",
+  },
+
+  commandPaletteTitle: { id: "commandPalette.title", defaultMessage: "Command palette" },
+  commandPaletteSearch: { id: "commandPalette.search", defaultMessage: "Search commands" },
+  commandPalettePlaceholder: { id: "commandPalette.placeholder", defaultMessage: "Type a command" },
+  commandPaletteClose: { id: "commandPalette.close", defaultMessage: "Close command palette" },
+  commandPaletteLoading: { id: "commandPalette.loading", defaultMessage: "Loading commands..." },
+  commandPaletteEmpty: { id: "commandPalette.empty", defaultMessage: "No matching commands" },
+  commandPaletteUnavailable: {
+    id: "commandPalette.unavailable",
+    defaultMessage: "Command unavailable in the current context.",
+  },
+  commandPaletteSource: { id: "commandPalette.source", defaultMessage: "Command Palette" },
+
+  commandCategoryView: { id: "command.category.view", defaultMessage: "View" },
+  commandCategoryPreferences: {
+    id: "command.category.preferences",
+    defaultMessage: "Preferences",
+  },
+  commandCategoryEditor: { id: "command.category.editor", defaultMessage: "Editor" },
+  commandCategoryWindow: { id: "command.category.window", defaultMessage: "Window" },
+  commandShowCommands: {
+    id: "command.workbench.action.showCommands.title",
+    defaultMessage: "Show All Commands",
+  },
+  commandOpenKeybindings: {
+    id: "command.workbench.action.openGlobalKeybindings.title",
+    defaultMessage: "Keyboard Shortcuts",
+  },
+  commandTogglePanel: {
+    id: "command.workbench.action.togglePanel.title",
+    defaultMessage: "Toggle Panel",
+  },
+  commandFormatDocument: {
+    id: "command.editor.action.formatDocument.title",
+    defaultMessage: "Format Document",
+  },
+  commandFormatDocumentDisabled: {
+    id: "command.editor.action.formatDocument.disabled",
+    defaultMessage: "Open a text editor to format a document.",
+  },
+  commandToggleZen: {
+    id: "command.workbench.action.toggleZenMode.title",
+    defaultMessage: "Toggle Zen Mode",
+  },
+  commandSaveLayout: {
+    id: "command.workbench.layoutProfile.save.title",
+    defaultMessage: "Save Layout Profile",
+  },
+  commandSwitchLayout: {
+    id: "command.workbench.layoutProfile.switch.title",
+    defaultMessage: "Switch Layout Profile",
+  },
+  commandRenameLayout: {
+    id: "command.workbench.layoutProfile.rename.title",
+    defaultMessage: "Rename Layout Profile",
+  },
+  commandDeleteLayout: {
+    id: "command.workbench.layoutProfile.delete.title",
+    defaultMessage: "Delete Layout Profile",
+  },
+  commandListLayouts: {
+    id: "command.workbench.layoutProfile.list.title",
+    defaultMessage: "List Layout Profiles",
+  },
+  commandNewWindow: {
+    id: "command.workbench.action.newWindow.title",
+    defaultMessage: "New Window",
+  },
+  commandOpenFolderWindow: {
+    id: "command.workbench.action.openFolderInNewWindow.title",
+    defaultMessage: "Open Folder in New Window",
+  },
+  commandDuplicateWorkspace: {
+    id: "command.workbench.action.duplicateWorkspaceInNewWindow.title",
+    defaultMessage: "Duplicate Workspace in New Window",
+  },
+  commandCloseWindow: {
+    id: "command.workbench.action.closeWindow.title",
+    defaultMessage: "Close Window",
+  },
+  commandMoveEditorWindow: {
+    id: "command.workbench.action.moveEditorToNewWindow.title",
+    defaultMessage: "Move Editor to New Window",
+  },
+  commandMoveEditorWindowDisabled: {
+    id: "command.workbench.action.moveEditorToNewWindow.disabled",
+    defaultMessage: "Open an editor before moving it to a new window.",
+  },
+  commandCursorLeft: { id: "command.cursorLeft.title", defaultMessage: "Move Cursor Left" },
+  commandCursorRight: {
+    id: "command.cursorRight.title",
+    defaultMessage: "Move Cursor Right",
+  },
+  commandCursorUp: { id: "command.cursorUp.title", defaultMessage: "Move Cursor Up" },
+  commandCursorDown: { id: "command.cursorDown.title", defaultMessage: "Move Cursor Down" },
+  commandCursorHome: { id: "command.cursorHome.title", defaultMessage: "Move to Line Start" },
+  commandCursorEnd: { id: "command.cursorEnd.title", defaultMessage: "Move to Line End" },
+  commandCursorTop: { id: "command.cursorTop.title", defaultMessage: "Move to Document Start" },
+  commandCursorBottom: {
+    id: "command.cursorBottom.title",
+    defaultMessage: "Move to Document End",
+  },
+  commandCursorPageUp: {
+    id: "command.cursorPageUp.title",
+    defaultMessage: "Move Cursor Page Up",
+  },
+  commandCursorPageDown: {
+    id: "command.cursorPageDown.title",
+    defaultMessage: "Move Cursor Page Down",
+  },
+  commandCursorLeftDisabled: {
+    id: "command.cursorLeft.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorRightDisabled: {
+    id: "command.cursorRight.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorUpDisabled: {
+    id: "command.cursorUp.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorDownDisabled: {
+    id: "command.cursorDown.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorHomeDisabled: {
+    id: "command.cursorHome.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorEndDisabled: {
+    id: "command.cursorEnd.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorTopDisabled: {
+    id: "command.cursorTop.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorBottomDisabled: {
+    id: "command.cursorBottom.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorPageUpDisabled: {
+    id: "command.cursorPageUp.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+  commandCursorPageDownDisabled: {
+    id: "command.cursorPageDown.disabled",
+    defaultMessage: "Focus a text editor to move the cursor.",
+  },
+
+  notificationProgress: { id: "notification.progress", defaultMessage: "{message} progress" },
+  notificationCancel: { id: "notification.cancel", defaultMessage: "Cancel" },
+  notificationDismiss: { id: "notification.dismiss", defaultMessage: "Dismiss notification" },
+  notificationRegion: { id: "notification.region", defaultMessage: "Notifications" },
+  notificationCenterCount: {
+    id: "notification.centerCount",
+    defaultMessage:
+      "Notification center, {count, plural, one {# notification} other {# notifications}}",
+  },
+  notificationCenterTitle: { id: "notification.centerTitle", defaultMessage: "Notifications" },
+  notificationCenterLandmark: {
+    id: "notification.centerLandmark",
+    defaultMessage: "Notification center",
+  },
+  notificationDndTitle: {
+    id: "notification.dndTitle",
+    defaultMessage: "Notifications (do not disturb)",
+  },
+  notificationClearAll: { id: "notification.clearAll", defaultMessage: "Clear all notifications" },
+  notificationHideCenter: {
+    id: "notification.hideCenter",
+    defaultMessage: "Hide notification center",
+  },
+  notificationDnd: { id: "notification.dnd", defaultMessage: "Do not disturb" },
+  notificationHistory: { id: "notification.history", defaultMessage: "Notification history" },
+  notificationEmpty: { id: "notification.empty", defaultMessage: "No notifications" },
+  notificationAnnouncement: {
+    id: "notification.announcement",
+    defaultMessage: "{source}: {message}",
+  },
+  notificationBadgeOverflow: {
+    id: "notification.badgeOverflow",
+    defaultMessage: "{count}+",
+  },
+
+  keybindingsTitle: { id: "keybindings.title", defaultMessage: "Keyboard Shortcuts" },
+  keybindingsClose: { id: "keybindings.close", defaultMessage: "Close Keyboard Shortcuts" },
+  keybindingsSearch: { id: "keybindings.search", defaultMessage: "Search shortcuts" },
+  keybindingsFilterCommand: {
+    id: "keybindings.filterCommand",
+    defaultMessage: "Filter by command",
+  },
+  keybindingsAllCommands: { id: "keybindings.allCommands", defaultMessage: "All commands" },
+  keybindingsConflictsOnly: { id: "keybindings.conflictsOnly", defaultMessage: "Conflicts only" },
+  keybindingsScheme: { id: "keybindings.scheme", defaultMessage: "Keymap scheme" },
+  keybindingsImportScheme: { id: "keybindings.importScheme", defaultMessage: "Import scheme" },
+  keybindingsReload: { id: "keybindings.reload", defaultMessage: "Reload" },
+  keybindingsEditForm: { id: "keybindings.editForm", defaultMessage: "Edit shortcut for {title}" },
+  keybindingsShortcut: { id: "keybindings.shortcut", defaultMessage: "Shortcut" },
+  keybindingsRecord: { id: "keybindings.record", defaultMessage: "Record shortcut" },
+  keybindingsWhen: { id: "keybindings.when", defaultMessage: "When" },
+  keybindingsWhenClause: { id: "keybindings.whenClause", defaultMessage: "When clause" },
+  keybindingsInvalid: {
+    id: "keybindings.invalid",
+    defaultMessage: "Enter a valid shortcut and when clause.",
+  },
+  keybindingsConflicting: {
+    id: "keybindings.conflicting",
+    defaultMessage: "Conflicting shortcuts",
+  },
+  keybindingsCompetingCommands: {
+    id: "keybindings.competingCommands",
+    defaultMessage: "Competing commands",
+  },
+  keybindingsRemoveCompeting: {
+    id: "keybindings.removeCompeting",
+    defaultMessage: "Remove competing shortcut",
+  },
+  keybindingsSaveBinding: { id: "keybindings.saveBinding", defaultMessage: "Save binding" },
+  keybindingsTable: { id: "keybindings.table", defaultMessage: "Keybindings" },
+  keybindingsCommand: { id: "keybindings.command", defaultMessage: "Command" },
+  keybindingsSource: { id: "keybindings.source", defaultMessage: "Source" },
+  keybindingsActions: { id: "keybindings.actions", defaultMessage: "Actions" },
+  keybindingsAlways: { id: "keybindings.always", defaultMessage: "Always" },
+  keybindingsUnassigned: { id: "keybindings.unassigned", defaultMessage: "Unassigned" },
+  keybindingsChange: { id: "keybindings.change", defaultMessage: "Change shortcut for {title}" },
+  keybindingsReset: { id: "keybindings.reset", defaultMessage: "Reset shortcuts for {title}" },
+  keybindingsRemove: { id: "keybindings.remove", defaultMessage: "Remove shortcut for {title}" },
+  keybindingsCompetes: { id: "keybindings.competes", defaultMessage: "Competes with {commands}" },
+  keybindingsPriority: { id: "keybindings.priority", defaultMessage: "Priority: {command}" },
+  keybindingsNoMatch: { id: "keybindings.noMatch", defaultMessage: "No matching shortcuts" },
+  keybindingsLoading: { id: "keybindings.loading", defaultMessage: "Loading shortcuts..." },
+  keybindingsCount: {
+    id: "keybindings.count",
+    defaultMessage: "{count, plural, one {# binding} other {# bindings}}",
+  },
+  keybindingsSaving: { id: "keybindings.saving", defaultMessage: "Saving..." },
+  keybindingsUserFile: { id: "keybindings.userFile", defaultMessage: "User keybindings" },
+  keybindingsDefaultSource: { id: "keybindings.defaultSource", defaultMessage: "Default" },
+  keybindingsPluginSource: { id: "keybindings.pluginSource", defaultMessage: "Plugin" },
+  keybindingsUserSource: { id: "keybindings.userSource", defaultMessage: "User" },
+  keybindingsOwnerWhen: {
+    id: "keybindings.ownerWhen",
+    defaultMessage: "{owner}: {when}",
+  },
+  keybindingsChordPending: { id: "keybindings.chordPending", defaultMessage: "{shortcut} ..." },
+  keybindingsReadOnly: {
+    id: "keybindings.readOnly",
+    defaultMessage: "Keybindings are unavailable or read-only. Reload after repairing the file.",
+  },
+  keybindingsWarningSource: { id: "keybindings.warningSource", defaultMessage: "Keybindings" },
+
+  workbenchLoading: { id: "workbench.loading", defaultMessage: "Loading..." },
+  workbenchLeftSide: { id: "workbench.leftSide", defaultMessage: "Left" },
+  workbenchRightSide: { id: "workbench.rightSide", defaultMessage: "Right" },
+  workbenchLeftSideLower: { id: "workbench.leftSideLower", defaultMessage: "left" },
+  workbenchRightSideLower: { id: "workbench.rightSideLower", defaultMessage: "right" },
+  workbenchLeftRail: { id: "workbench.leftRail", defaultMessage: "Left activity rail" },
+  workbenchRightRail: { id: "workbench.rightRail", defaultMessage: "Right activity rail" },
+  workbenchHidePanel: { id: "workbench.hidePanel", defaultMessage: "Hide {side} panel" },
+  workbenchShowPanel: { id: "workbench.showPanel", defaultMessage: "Show {side} panel" },
+  workbenchSwapPanels: { id: "workbench.swapPanels", defaultMessage: "Swap left and right panels" },
+  workbenchMoveBottomPanel: {
+    id: "workbench.moveBottomPanel",
+    defaultMessage: "Move bottom panel",
+  },
+  workbenchShowBottomPanel: {
+    id: "workbench.showBottomPanel",
+    defaultMessage: "Show bottom panel",
+  },
+  workbenchPanelName: { id: "workbench.panelName", defaultMessage: "{side} panel" },
+  workbenchResizePanel: { id: "workbench.resizePanel", defaultMessage: "Resize {side} panel" },
+  workbenchEditorArea: { id: "workbench.editorArea", defaultMessage: "Editor area" },
+  workbenchSplitRight: { id: "workbench.splitRight", defaultMessage: "Split right" },
+  workbenchSplitDown: { id: "workbench.splitDown", defaultMessage: "Split down" },
+  workbenchEditorGroup: { id: "workbench.editorGroup", defaultMessage: "Editor group {number}" },
+  workbenchCloseEditorGroup: {
+    id: "workbench.closeEditorGroup",
+    defaultMessage: "Close editor group {number}",
+  },
+  workbenchPanel: { id: "workbench.panel", defaultMessage: "Panel" },
+  workbenchPanelTabs: { id: "workbench.panelTabs", defaultMessage: "Panel tabs" },
+  workbenchClosePanel: { id: "workbench.closePanel", defaultMessage: "Close panel" },
+  workbenchResizeBottomPanel: { id: "workbench.resizeBottomPanel", defaultMessage: "Resize panel" },
+  workbenchTitleBar: { id: "workbench.titleBar", defaultMessage: "Title bar" },
+  workbenchStatusBar: { id: "workbench.statusBar", defaultMessage: "Status bar" },
+  workbenchPanelFailed: { id: "workbench.panelFailed", defaultMessage: "{name} failed to load" },
+  workbenchReloadPanel: { id: "workbench.reloadPanel", defaultMessage: "Reload panel" },
+  workbenchNoFolder: { id: "workbench.noFolder", defaultMessage: "No folder is open." },
+  workbenchRightPanel: { id: "workbench.rightPanel", defaultMessage: "Right panel" },
+  workbenchNoProblems: { id: "workbench.noProblems", defaultMessage: "No problems detected." },
+  workbenchLayoutSaveFailed: {
+    id: "workbench.layoutSaveFailed",
+    defaultMessage: "Layout could not be saved. A later change will retry: {error}",
+  },
+  workbenchLayoutInvalid: {
+    id: "workbench.layoutInvalid",
+    defaultMessage: "Saved layout was invalid and has been reset to the default layout.",
+  },
+  workbenchLayoutReconcileFailed: {
+    id: "workbench.layoutReconcileFailed",
+    defaultMessage: "Layout reconciliation failed; the current layout is unchanged: {error}",
+  },
+  workbenchLayoutUnavailable: {
+    id: "workbench.layoutUnavailable",
+    defaultMessage: "Saved layout is unavailable; the default layout is in use: {error}",
+  },
+  workbenchProfileNameEmpty: {
+    id: "workbench.profileNameEmpty",
+    defaultMessage: "A layout profile name cannot be empty.",
+  },
+  workbenchProfileMissingViews: {
+    id: "workbench.profileMissingViews",
+    defaultMessage: "Layout profile '{name}' loaded with unavailable views left empty: {views}.",
+  },
+  workbenchProfileMissing: {
+    id: "workbench.profileMissing",
+    defaultMessage: "Layout profile '{name}' does not exist.",
+  },
+  workbenchProfileExists: {
+    id: "workbench.profileExists",
+    defaultMessage: "Layout profile '{name}' already exists.",
+  },
+  workbenchNoFormatter: {
+    id: "workbench.noFormatter",
+    defaultMessage: "No formatter is registered for the active editor.",
+  },
+  workbenchEditorSource: { id: "workbench.editorSource", defaultMessage: "Editor" },
+  workbenchSource: { id: "workbench.source", defaultMessage: "Workbench" },
+  workbenchSaveProfilePrompt: {
+    id: "workbench.saveProfilePrompt",
+    defaultMessage: "Save the current layout as:",
+  },
+  workbenchSwitchProfilePrompt: {
+    id: "workbench.switchProfilePrompt",
+    defaultMessage: "Switch to layout profile ({profiles}):",
+  },
+  workbenchRenameProfilePrompt: {
+    id: "workbench.renameProfilePrompt",
+    defaultMessage: "Layout profile to rename:",
+  },
+  workbenchNewProfileNamePrompt: {
+    id: "workbench.newProfileNamePrompt",
+    defaultMessage: "New profile name:",
+  },
+  workbenchDeleteProfilePrompt: {
+    id: "workbench.deleteProfilePrompt",
+    defaultMessage: "Layout profile to delete:",
+  },
+  workbenchNoProfiles: {
+    id: "workbench.noProfiles",
+    defaultMessage: "No layout profiles saved.",
+  },
+  workbenchProfileList: {
+    id: "workbench.profileList",
+    defaultMessage: "Layout profiles: {profiles}",
+  },
+  workbenchFolderPathPrompt: {
+    id: "workbench.folderPathPrompt",
+    defaultMessage: "Folder path to open:",
+  },
+  workbenchOpenFolderPathRequired: {
+    id: "workbench.openFolderPathRequired",
+    defaultMessage: "Open Folder in New Window requires 'path'.",
+  },
+  commandRendererMissing: {
+    id: "command.rendererMissing",
+    defaultMessage: "No renderer handler is registered for '{command}'.",
+  },
+  workbenchExplorer: { id: "workbench.explorer", defaultMessage: "Explorer" },
+  workbenchSearch: { id: "workbench.search", defaultMessage: "Search" },
+  workbenchSourceControl: { id: "workbench.sourceControl", defaultMessage: "Source Control" },
+  workbenchProblems: { id: "workbench.problems", defaultMessage: "Problems" },
+  workbenchOutput: { id: "workbench.output", defaultMessage: "Output" },
+
+  recoveryTitle: { id: "recovery.title", defaultMessage: "Kernel recovery required" },
+  recoveryDescription: {
+    id: "recovery.description",
+    defaultMessage:
+      "Helix stopped restarting the kernel after repeated crashes. Your persisted work remains on disk.",
+  },
+  recoverySafeMode: {
+    id: "recovery.safeMode",
+    defaultMessage: "Safe mode is enabled: plugins and session restore are disabled.",
+  },
+  recoveryLastError: { id: "recovery.lastError", defaultMessage: "Last error: {error}" },
+  recoveryRetry: { id: "recovery.retry", defaultMessage: "Retry" },
+  recoveryWithoutRestore: {
+    id: "recovery.withoutRestore",
+    defaultMessage: "Start without session restore",
+  },
+  recoveryOpenLogs: { id: "recovery.openLogs", defaultMessage: "Open logs" },
+  recoveryActionFailed: {
+    id: "recovery.actionFailed",
+    defaultMessage: "Recovery action failed: {error}",
+  },
+
+  streamIdle: { id: "stream.idle", defaultMessage: "Stream idle" },
+  streamConnecting: { id: "stream.connecting", defaultMessage: "Connecting..." },
+  streamLive: { id: "stream.live", defaultMessage: "Live" },
+  streamReconnecting: { id: "stream.reconnecting", defaultMessage: "Reconnecting..." },
+  streamClosed: { id: "stream.closed", defaultMessage: "Stream closed" },
+
+  trustLoading: { id: "trust.loading", defaultMessage: "Loading workspace trust..." },
+  trustRootsUnavailable: {
+    id: "trust.rootsUnavailable",
+    defaultMessage: "Workspace trust roots unavailable: {error}",
+  },
+  trustStatusUnavailable: {
+    id: "trust.statusUnavailable",
+    defaultMessage: "Trust status unavailable: {error}",
+  },
+  trustPromptTitle: { id: "trust.promptTitle", defaultMessage: "Trust this folder?" },
+  trustPromptDescription: {
+    id: "trust.promptDescription",
+    defaultMessage:
+      "Helix opened {path}. In Restricted mode, language servers, tasks, and other workspace-supplied code will not run.",
+  },
+  trustFolder: { id: "trust.folder", defaultMessage: "Trust folder" },
+  trustStayRestricted: { id: "trust.stayRestricted", defaultMessage: "Stay in Restricted mode" },
+  trustRestricted: {
+    id: "trust.restricted",
+    defaultMessage: "Restricted mode: tasks and language servers are blocked for this workspace.",
+  },
+  trustRestrictedMode: { id: "trust.restrictedMode", defaultMessage: "Restricted mode" },
+  trustStoreUnreadable: {
+    id: "trust.storeUnreadable",
+    defaultMessage: "The trust store is unreadable; every folder stays restricted.",
+  },
+  trustRequired: { id: "trust.required", defaultMessage: "Trust required" },
+  trustTrusted: { id: "trust.trusted", defaultMessage: "Trusted" },
+  trustWorkspaceLabel: { id: "trust.workspaceLabel", defaultMessage: "Workspace trust: {status}" },
+  trustManagerTitle: { id: "trust.managerTitle", defaultMessage: "Trusted folders" },
+  trustNone: { id: "trust.none", defaultMessage: "No trusted folders yet." },
+  trustIncludesSubfolders: {
+    id: "trust.includesSubfolders",
+    defaultMessage: "includes subfolders",
+  },
+  trustIncludesSubfoldersSuffix: {
+    id: "trust.includesSubfoldersSuffix",
+    defaultMessage: " (includes subfolders)",
+  },
+  trustRemove: { id: "trust.remove", defaultMessage: "Remove trust" },
+  trustAll: { id: "trust.all", defaultMessage: "All folders are trusted." },
+  trustRequireDecisions: {
+    id: "trust.requireDecisions",
+    defaultMessage: "Require trust decisions",
+  },
+  trustEveryWarning: {
+    id: "trust.everyWarning",
+    defaultMessage:
+      "Trusting every folder allows code from any repository you open to launch processes on this machine. Only continue if you understand this risk.",
+  },
+  trustAcknowledge: { id: "trust.acknowledge", defaultMessage: "I understand the security risk" },
+  trustEveryFolder: { id: "trust.everyFolder", defaultMessage: "Trust every folder" },
+  trustAllFolders: { id: "trust.allFolders", defaultMessage: "Trust all folders…" },
+
+  logsTitle: { id: "logs.title", defaultMessage: "Logs" },
+  logsFilters: { id: "logs.filters", defaultMessage: "Log filters" },
+  logsMinimumLevel: { id: "logs.minimumLevel", defaultMessage: "Minimum level" },
+  logsAllLevels: { id: "logs.allLevels", defaultMessage: "All levels" },
+  logsSource: { id: "logs.source", defaultMessage: "Source" },
+  logsAllSources: { id: "logs.allSources", defaultMessage: "All sources" },
+  logsSearch: { id: "logs.search", defaultMessage: "Search" },
+  logsSearchPlaceholder: {
+    id: "logs.searchPlaceholder",
+    defaultMessage: "message, source, or field",
+  },
+  logsFromUtc: { id: "logs.fromUtc", defaultMessage: "From (UTC)" },
+  logsFromPlaceholder: { id: "logs.fromPlaceholder", defaultMessage: "2026-01-01T10:00" },
+  logsToUtc: { id: "logs.toUtc", defaultMessage: "To (UTC)" },
+  logsToPlaceholder: { id: "logs.toPlaceholder", defaultMessage: "2026-01-01T11:00" },
+  logsCorrelation: { id: "logs.correlation", defaultMessage: "Correlation ID" },
+  logsCorrelationPlaceholder: { id: "logs.correlationPlaceholder", defaultMessage: "cmd-…" },
+  logsFollow: { id: "logs.follow", defaultMessage: "Follow tail" },
+  logsExport: { id: "logs.export", defaultMessage: "Export filtered set" },
+  logsClearFilters: { id: "logs.clearFilters", defaultMessage: "Clear filters" },
+  logsLoading: { id: "logs.loading", defaultMessage: "Loading entries..." },
+  logsShowing: {
+    id: "logs.showing",
+    defaultMessage:
+      "Showing {shown} of {matched, plural, one {# matching entry} other {# matching entries}}{evicted, plural, =0 {} other { · # older entries no longer retained}}",
+  },
+  logsCopyUnavailable: {
+    id: "logs.copyUnavailable",
+    defaultMessage: "Copying is unavailable in this environment.",
+  },
+  logsCopied: { id: "logs.copied", defaultMessage: "Entry copied." },
+  logsCopyFailed: { id: "logs.copyFailed", defaultMessage: "The entry could not be copied." },
+  logsExported: {
+    id: "logs.exported",
+    defaultMessage: "Exported {count, plural, one {# entry} other {# entries}}.",
+  },
+  logsExportFailed: { id: "logs.exportFailed", defaultMessage: "Export failed: {error}" },
+  logsRetry: { id: "logs.retry", defaultMessage: "Retry" },
+  logsEntries: { id: "logs.entries", defaultMessage: "Log entries" },
+  logsCopyEntry: { id: "logs.copyEntry", defaultMessage: "Copy entry: {message}" },
+  logsCopy: { id: "logs.copy", defaultMessage: "Copy" },
+  logsNoEntries: { id: "logs.noEntries", defaultMessage: "No entries match the current filters." },
+});
+
+export type MessageKey = keyof typeof messages;

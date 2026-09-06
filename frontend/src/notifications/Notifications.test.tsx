@@ -71,7 +71,7 @@ describe("notifications", () => {
       "Connection failed",
     );
     expect(
-      screen.getByRole("button", { name: "Notification center, 1 notifications" }),
+      screen.getByRole("button", { name: "Notification center, 1 notification" }),
     ).toBeInTheDocument();
   });
 
@@ -83,7 +83,7 @@ describe("notifications", () => {
     expect(
       within(screen.getByRole("region", { name: "Notifications" })).queryByText("Save failed"),
     ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Notification center, 1 notifications" }));
+    fireEvent.click(screen.getByRole("button", { name: "Notification center, 1 notification" }));
     expect(screen.getByRole("region", { name: "Notification center" })).toHaveTextContent(
       "Save failed",
     );
@@ -103,7 +103,7 @@ describe("notifications", () => {
   it("keeps history and DND when hidden with Escape or the header button", () => {
     renderNotifications();
     publish({ kind: "error", message: "Save failed", source: "File system" });
-    const toggle = screen.getByRole("button", { name: "Notification center, 1 notifications" });
+    const toggle = screen.getByRole("button", { name: "Notification center, 1 notification" });
     fireEvent.click(toggle);
     const dnd = screen.getByRole("checkbox", { name: "Do not disturb" });
     fireEvent.click(dnd);

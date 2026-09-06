@@ -5,10 +5,29 @@ import type { IconId } from "../generated/icons.gen";
 
 // Mock the generated icons module
 vi.mock("../generated/icons.gen", () => ({
-  KNOWN_ICON_IDS: ["file", "folder", "folder-open", "add", "terminal", "split-horizontal", "split-vertical", "placeholder"],
+  KNOWN_ICON_IDS: [
+    "file",
+    "folder",
+    "folder-open",
+    "add",
+    "terminal",
+    "split-horizontal",
+    "split-vertical",
+    "placeholder",
+  ],
   ICON_SIZE_PX: { sm: 12, md: 16, lg: 20 },
+  RTL_MIRRORED_ICON_IDS: ["split-horizontal"],
   resolveIconId: (id: string) => {
-    const known = ["file", "folder", "folder-open", "add", "terminal", "split-horizontal", "split-vertical", "placeholder"];
+    const known = [
+      "file",
+      "folder",
+      "folder-open",
+      "add",
+      "terminal",
+      "split-horizontal",
+      "split-vertical",
+      "placeholder",
+    ];
     return known.includes(id) ? id : "placeholder";
   },
 }));
@@ -41,6 +60,11 @@ describe("Icon component", () => {
   it("adds custom className", () => {
     render(<Icon id="file" className="custom-class" />);
     expect(screen.getByTestId("icon")).toHaveClass("custom-class");
+  });
+
+  it("automatically marks directional icons for RTL mirroring", () => {
+    render(<Icon id="split-horizontal" />);
+    expect(screen.getByTestId("icon")).toHaveClass("icon-rtl-flip");
   });
 
   it("sets aria-label and role=img when label is provided", () => {
