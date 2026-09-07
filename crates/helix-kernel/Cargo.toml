@@ -32,6 +32,8 @@ ts-rs = "=12.0.1"
 tokio = { version = "=1.53.1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "process"] }
 
 [dev-dependencies]
+futures-util = { version = "=0.3.33", default-features = false, features = ["sink", "std"] }
+tokio-tungstenite = "=0.30.0"
 # The scratch-directory helper, so the file system tests use the same type as
 # the ones inside `helix-fs` rather than a third copy of it.
 helix-fs = { path = "../helix-fs", features = ["testutil"] }

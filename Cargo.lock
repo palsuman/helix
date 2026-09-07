@@ -1756,6 +1756,7 @@ name = "helix-kernel"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "futures-util",
  "helix-config",
  "helix-core",
  "helix-fs",
@@ -1769,6 +1770,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-tungstenite",
  "ts-rs",
 ]
 

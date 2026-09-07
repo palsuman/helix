@@ -1,3 +1,4 @@
 dist
+coverage
 src/generated
 node_modules

@@ -1,15 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StreamControl } from "../generated/StreamControl";
 import type { StreamEndpoint } from "../generated/StreamEndpoint";
-import type { StreamEnvelope } from "../generated/StreamEnvelope";
-import type { StreamFrame } from "../generated/StreamFrame";
+import { MockSocket as FakeSocket } from "../test/mockStream";
 import {
   MAX_BACKOFF_MS,
   MIN_BACKOFF_MS,
   StreamClient,
   backoffDelayMs,
   type BackpressureEvent,
-  type StreamSocket,
   type StreamStatus,
 } from "./client";
 
@@ -25,76 +22,6 @@ function endpoint(overrides: Partial<StreamEndpoint> = {}): StreamEndpoint {
     default_buffer_depth: 1_000,
     ...overrides,
   };
-}
-
-/**
- * A stand-in for the kernel's socket. Records what the client sent and lets
- * the test drive open, message, close, and error, so the whole reconnect and
- * heartbeat state machine is exercised without a network.
- */
-class FakeSocket implements StreamSocket {
-  onopen: ((event?: unknown) => void) | null = null;
-  onclose: ((event?: unknown) => void) | null = null;
-  onerror: ((event?: unknown) => void) | null = null;
-  onmessage: ((event: { data: unknown }) => void) | null = null;
-  readonly sent: string[] = [];
-  readonly url: string;
-  closed = false;
-
-  constructor(url: string) {
-    this.url = url;
-  }
-
-  send(data: string): void {
-    if (this.closed) throw new Error("socket is closed");
-    this.sent.push(data);
-  }
-
-  close(): void {
-    this.closed = true;
-  }
-
-  open(): void {
-    this.onopen?.();
-  }
-
-  /** Deliver a frame as the kernel would. */
-  emit(frame: StreamFrame): void {
-    this.onmessage?.({ data: JSON.stringify(frame) });
-  }
-
-  emitData(channel: string, sequence: number, payload: unknown): void {
-    const envelope: StreamEnvelope = {
-      channel,
-      correlation_id: null,
-      sequence,
-      payload,
-    };
-    this.emit({ kind: "data", ...envelope });
-  }
-
-  emitControl(control: StreamControl): void {
-    this.emit({ kind: "control", ...control } as StreamFrame);
-  }
-
-  emitRaw(data: unknown): void {
-    this.onmessage?.({ data });
-  }
-
-  /** The socket dying without a close handshake, as a killed kernel would. */
-  die(): void {
-    this.closed = true;
-    this.onclose?.();
-  }
-
-  /** Control frames the client sent, with the frame discriminator removed. */
-  controls(): StreamControl[] {
-    return this.sent.map((raw) => {
-      const { kind, ...control } = JSON.parse(raw) as { kind: string } & StreamControl;
-      expect(kind).toBe("control");
-      return control as StreamControl;
-    });
-  }
 }
 
 function harness(options: { endpoint?: StreamEndpoint; failEndpoint?: boolean } = {}) {

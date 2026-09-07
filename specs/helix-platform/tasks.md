@@ -400,7 +400,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
 
   Goal: the harnesses that keep every later phase honest, in place before the code they verify.
 
-  - [ ] 3.1 Set up Rust integration test framework
+  - [x] 3.1 Set up Rust integration test framework
     - Harness spinning up the real service container with mocked external processes
     - Utilities: temp workspace creation, file population, state assertions
     - IPC test client sending commands and asserting typed responses
@@ -411,7 +411,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: a test creates a workspace, drives it over IPC, kills the kernel, and asserts recovery — green in CI on all three platforms_
     - _Requirements: REQ-ARCH-002, REQ-NFR-002_
 
-  - [ ] 3.2 Set up frontend component test framework
+  - [x] 3.2 Set up frontend component test framework
     - Vitest with @testing-library/react
     - Mock IPC client simulating kernel responses
     - Mock WebSocket client for stream-driven components

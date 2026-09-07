@@ -22,7 +22,7 @@ import { noUserVisibleLiterals } from "./eslint-rules/no-user-visible-literals.j
 // Localization literals are enforced from Task 2.10 onward. Icon-label
 // enforcement remains part of the icon-system follow-up surface.
 export default [
-  { ignores: ["dist", "src-tauri", "src/generated"] },
+  { ignores: ["dist", "coverage", "src-tauri", "src/generated"] },
   js.configs.recommended,
   {
     files: ["**/*.{ts,tsx}"],

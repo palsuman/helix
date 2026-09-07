@@ -42,8 +42,11 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Lint Rust
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Test Rust
-        run: cargo test --workspace
+      - name: Compile Rust tests
+        run: cargo test --workspace --locked --no-run
+      - name: Test Rust (two-minute runtime budget)
+        timeout-minutes: 2
+        run: cargo test --workspace --locked
       - name: Build Rust workspace
         run: cargo build --workspace
       - name: Lint frontend

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { IpcRequest } from "./generated/IpcRequest";
-import { IpcClient, type InvokeFn } from "./ipc";
+import { createMockIpc } from "./test/mockIpc";
+import type { WindowLayoutGetResponse } from "./generated/WindowLayoutGetResponse";
 import { DEFAULT_LAYOUT, useLayoutStore, type WorkbenchLayout } from "./workbench/layoutStore";
 import { notify, useNotificationStore } from "./notifications";
 import App from "./App";
@@ -9,30 +9,19 @@ import { keybindingHarness } from "./keybindings/testUtils";
 import { detectPlatform } from "./keybindings/schemes";
 
 function shellClient(initialLayout: WorkbenchLayout | null = null) {
-  const commands: string[] = [];
-  const requests: IpcRequest<unknown>[] = [];
-  const invoke: InvokeFn = async <T,>(_endpoint: string, args?: Record<string, unknown>) => {
-    const request = (args as { request: IpcRequest<unknown> }).request;
-    commands.push(request.command);
-    requests.push(request);
-    const result =
-      request.command === "window.layout.get"
-        ? { layout: initialLayout }
-        : request.command === "command.list"
-          ? { commands: [] }
-          : request.command === "keybindings.get"
-            ? {
-                user: [],
-                plugins: [],
-                warnings: [],
-                revision: "missing",
-                writable: true,
-                path: null,
-              }
-            : {};
-    return { correlation_id: request.correlation_id, result, error: null } as T;
-  };
-  return { client: new IpcClient({ invoke }), commands, requests };
+  const kernel = createMockIpc();
+  kernel.respond<WindowLayoutGetResponse>("window.layout.get", { layout: initialLayout });
+  kernel.respond("window.layout.set", {});
+  kernel.respond("command.list", { commands: [] });
+  kernel.respond("keybindings.get", {
+    user: [],
+    plugins: [],
+    warnings: [],
+    revision: "missing",
+    writable: true,
+    path: null,
+  });
+  return kernel;
 }
 
 describe("App", () => {
@@ -151,9 +140,10 @@ describe("App", () => {
     );
   });
 
-  it("renders only the production card-layout shell", () => {
+  it("renders only the production card-layout shell", async () => {
     const { client } = shellClient();
     render(<App client={client} />);
+    await act(async () => Promise.resolve());
 
     expect(screen.getByTestId("workbench")).toBeInTheDocument();
     expect(screen.getByRole("banner", { name: "Title bar" })).toHaveClass("workbench-titlebar");
@@ -176,9 +166,10 @@ describe("App", () => {
     expect(screen.getAllByRole("button")).toHaveLength(3);
   });
 
-  it("does not mount the retired transport demo", () => {
+  it("does not mount the retired transport demo", async () => {
     const { client, commands } = shellClient();
     render(<App client={client} />);
+    await act(async () => Promise.resolve());
 
     expect(screen.queryByText("IPC round trip")).not.toBeInTheDocument();
     expect(screen.queryByText("Cancellation")).not.toBeInTheDocument();
