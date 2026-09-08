@@ -1,6 +1,7 @@
 target/
 node_modules/
 dist/
+dist-e2e/
 coverage/
 *.tsbuildinfo
 .turbo/

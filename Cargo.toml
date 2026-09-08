@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/helix-bench",
     "crates/helix-config",
     "crates/helix-core",
     "crates/helix-fs",

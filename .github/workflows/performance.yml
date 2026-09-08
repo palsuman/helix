@@ -1,0 +1,50 @@
+name: Platform Performance
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - run: npm run bench:test
+
+  regression:
+    if: github.event_name != 'pull_request'
+    needs: tooling
+    runs-on: [self-hosted, helix-performance]
+    timeout-minutes: 30
+    concurrency:
+      group: helix-performance-reference-v1
+      cancel-in-progress: false
+    env:
+      HELIX_BENCH_RUNNER: reference-v1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - name: Verify pinned toolchain
+        run: rustc --version
+      - name: Measure latency and peak RSS
+        run: npm run bench
+      - name: Enforce ten-percent regression budget
+        run: npm run bench:check
+      - name: Upload samples and trend reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: performance-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/performance/
+          retention-days: 90
+          if-no-files-found: warn

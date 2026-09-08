@@ -1,0 +1,19 @@
+{
+  "build": {
+    "beforeBuildCommand": "",
+    "frontendDist": "../../frontend/dist-e2e"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "e2e",
+          "windows": ["*"],
+          "permissions": ["core:default", "wdio:default", "wdio-webdriver:default"]
+        }
+      ]
+    }
+  },
+  "bundle": { "active": false }
+}

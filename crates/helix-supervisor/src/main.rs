@@ -468,6 +468,10 @@ pub fn run() {
     });
     let shutdown_started = Arc::new(AtomicBool::new(false));
     let builder = tauri::Builder::default().manage(supervisor.clone());
+    #[cfg(feature = "e2e")]
+    let builder = builder
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init());
     #[cfg(not(feature = "ipc-e2e"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         ipc_dispatch,
@@ -652,6 +656,14 @@ pub fn run() {
             let handle = handle.clone();
             tauri::async_runtime::spawn(async move {
                 supervisor.shutdown().await;
+                #[cfg(feature = "e2e")]
+                if let Some(path) = std::env::var_os("HELIX_E2E_SHUTDOWN_REPORT") {
+                    let report = serde_json::json!({
+                        "hostPid": std::process::id(),
+                        "kernelStopped": matches!(supervisor.status().await, SupervisorStatus::Stopped),
+                    });
+                    std::fs::write(path, report.to_string()).expect("write E2E shutdown receipt");
+                }
                 handle.exit(0);
             });
         }

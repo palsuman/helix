@@ -421,7 +421,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: a component test renders the workbench shell, feeds it a mocked IPC response, and asserts the rendered result_
     - _Requirements: REQ-ARCH-004_
 
-  - [ ] 3.3 Set up E2E test framework
+  - [x] 3.3 Set up E2E test framework
     - WebdriverIO with `@wdio/tauri-service`, using the embedded WebDriver provider so the same suite runs on Windows, macOS, and Linux
     - Wire `tauri-plugin-wdio-webdriver` (required by the embedded provider) and `tauri-plugin-wdio` (for `browser.tauri.execute()`, IPC command mocking, and log capture), both behind a test-only feature flag so neither ships in release builds
     - Do not drive `tauri-driver` directly: it has no macOS support, which would leave a platform ungated
@@ -434,7 +434,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: CI launches the real binary on all three platforms, verifies the window and basic interaction, mocks one IPC command, and exits cleanly_
     - _Requirements: REQ-NFR-001, REQ-NFR-002_
 
-  - [ ] 3.4 Set up performance benchmark suite
+  - [x] 3.4 Set up performance benchmark suite
     - Criterion benchmarks: container startup, IPC round-trip, file read and write, config merge
     - Reference workspace generator script producing a 50k-file monorepo
     - CI gate comparing against a checked-in baseline, failing above 10% regression

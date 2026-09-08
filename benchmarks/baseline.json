@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "protocol": "helix-platform-v1-criterion-0.8.2-30samples-1s-warmup-3s-measure",
+  "recordedAt": "2026-09-08T04:44:57.098Z",
+  "revision": "1c6febe6f74a0e81bb1528c6b7b0f76666f062a3",
+  "dirty": true,
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M5",
+    "cpuCount": 10,
+    "osRelease": "25.6.0",
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "runner": "reference-v1"
+  },
+  "benchmarks": {
+    "container_startup": {
+      "meanNs": 40018.35256805495,
+      "lowerNs": 39767.7623338225,
+      "upperNs": 40276.71372270561,
+      "peakRssBytes": 14991360
+    },
+    "ipc_round_trip": {
+      "meanNs": 63697.04976506239,
+      "lowerNs": 62312.20093970889,
+      "upperNs": 65446.80162336158,
+      "peakRssBytes": 14942208
+    },
+    "file_read": {
+      "meanNs": 53631.18570448486,
+      "lowerNs": 53527.39543835086,
+      "upperNs": 53747.10920533354,
+      "peakRssBytes": 13746176
+    },
+    "file_write": {
+      "meanNs": 7809256.316482435,
+      "lowerNs": 7635690.730679544,
+      "upperNs": 7982024.370074003,
+      "peakRssBytes": 13320192
+    },
+    "config_merge": {
+      "meanNs": 24195.181079369122,
+      "lowerNs": 24041.84407450867,
+      "upperNs": 24415.00059989454,
+      "peakRssBytes": 14745600
+    }
+  },
+  "release": "0.1.0-bootstrap",
+  "updateReason": "Initial task 3.4 measurements from the implementation worktree on Apple M5; recalibrate on the dedicated CI runner before requiring the gate"
+}

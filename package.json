@@ -7,6 +7,11 @@
     "prepare": "husky",
     "check:dependencies": "node scripts/check-dependency-pinning.mjs",
     "check:waves": "node scripts/check-wave-plan.mjs",
+    "bench": "node scripts/benchmarks/run.mjs",
+    "bench:check": "node scripts/benchmarks/compare.mjs",
+    "bench:update": "node scripts/benchmarks/update-baseline.mjs",
+    "bench:workspace": "node scripts/benchmarks/generate-workspace.mjs",
+    "bench:test": "node --test scripts/benchmarks/report.test.mjs",
     "generate:types": "cargo test --workspace --lib export_bindings && npm --prefix frontend exec -- prettier --write frontend/src/generated",
     "check:types": "npm run generate:types && git diff --exit-code -- frontend/src/generated"
   },

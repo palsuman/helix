@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react()],
   define: {
     __HELIX_IPC_E2E__: JSON.stringify(process.env.VITE_HELIX_IPC_E2E === "1"),
+    __HELIX_WDIO_E2E__: JSON.stringify(process.env.VITE_HELIX_WDIO_E2E === "1"),
   },
   clearScreen: false,
   server: {
