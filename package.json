@@ -12,7 +12,8 @@
     "bench:update": "node scripts/benchmarks/update-baseline.mjs",
     "bench:workspace": "node scripts/benchmarks/generate-workspace.mjs",
     "bench:test": "node --test scripts/benchmarks/report.test.mjs",
-    "generate:types": "cargo test --workspace --lib export_bindings && npm --prefix frontend exec -- prettier --write frontend/src/generated",
+    "test:ipc-contract": "cargo test -p helix-ipc --test ipc_contract && npm run check:types",
+    "generate:types": "cargo test --workspace --lib export_bindings",
     "check:types": "npm run generate:types && git diff --exit-code -- frontend/src/generated"
   },
   "devDependencies": {

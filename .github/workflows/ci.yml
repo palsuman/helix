@@ -62,4 +62,4 @@ jobs:
         run: npm --prefix frontend run test:ipc-e2e
       - name: Verify generated TypeScript is current
         if: runner.os == 'Linux'
-        run: npm run check:types
+        run: npm run test:ipc-contract

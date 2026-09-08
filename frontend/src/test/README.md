@@ -50,6 +50,14 @@ Use fake timers for reconnect/heartbeat tests; advance them inside `act`.
 Unmount the component, call `dispose()` to stop client timers, and restore real
 timers in teardown. The shared socket is also used by `stream/client.test.ts`.
 
+## Accessibility
+
+Run the focused accessibility harness with `npm run test:a11y`. It registers
+`vitest-axe` in the shared setup and provides reusable assertions for axe
+violations, tab order, keyboard activation, modal focus traps, focus
+restoration, and WCAG contrast ratios. Keep the manual screen-reader pass in
+`screen-reader-checklist.md` alongside component changes.
+
 ## Coverage and CI
 
 The coverage command enforces a global 70% minimum for statements, branches,

@@ -445,7 +445,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: CI runs the suite, compares to baseline, and reports pass or fail with the delta_
     - _Requirements: REQ-NFR-001_
 
-  - [ ] 3.5 Set up IPC contract tests
+  - [x] 3.5 Set up IPC contract tests
     - Generate TypeScript interfaces from Rust command definitions
     - CI check failing on drift between generated and committed types
     - Per-command contract test: serialize request, deserialize kernel-side, serialize response, deserialize frontend-side
@@ -455,7 +455,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: change a Rust struct without regenerating types and watch CI fail with a readable diff_
     - _Requirements: REQ-ARCH-003_
 
-  - [ ] 3.6 Set up accessibility test harness
+  - [x] 3.6 Set up accessibility test harness
     - axe-core integrated into component tests via vitest-axe
     - Keyboard navigation assertions: tab order, arrow navigation, Enter/Space activation, Escape and focus restoration
     - Focus-trap assertions for modal surfaces

@@ -18,6 +18,7 @@
     "i18n:extract": "node scripts/extract-messages.mjs",
     "i18n:check": "node scripts/extract-messages.mjs --check",
     "test:eslint-rules": "node eslint-rules/no-user-visible-literals.test.js",
+    "test:a11y": "vitest run --config vitest.config.ts src/test/accessibility.test.tsx",
     "test": "npm run test:eslint-rules && vitest run --config vitest.config.ts",
     "test:coverage": "npm run test:eslint-rules && vitest run --config vitest.config.ts --coverage",
     "test:watch": "vitest --config vitest.config.ts",
@@ -53,6 +54,7 @@
     "@wdio/spec-reporter": "9.31.2",
     "@wdio/tauri-plugin": "1.4.0",
     "@wdio/tauri-service": "1.4.0",
+    "axe-core": "4.11.0",
     "esbuild": "0.28.2",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
@@ -63,6 +65,7 @@
     "typescript": "7.0.2",
     "vite": "8.2.1",
     "vitest": "4.1.10",
+    "vitest-axe": "0.1.0",
     "webdriverio": "9.31.6"
   }
 }
