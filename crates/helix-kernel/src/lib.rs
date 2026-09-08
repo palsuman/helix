@@ -121,6 +121,12 @@ pub async fn bootstrap() -> Result<Kernel, helix_core::ServiceError> {
         Some(trust.clone()),
     );
     fs::register_commands(&mut dispatcher, fs.clone());
+    fs::register_search_commands(
+        &mut dispatcher,
+        fs.clone(),
+        Arc::new(helix_fs::SearchService::new()),
+        streaming.hub().clone(),
+    );
     workspace::register_commands(&mut dispatcher, workspace.clone());
     project_graph::register_commands(
         &mut dispatcher,

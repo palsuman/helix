@@ -27,6 +27,7 @@
   "dependencies": {
     "@formatjs/icu-messageformat-parser": "3.5.17",
     "@tauri-apps/api": "2.11.1",
+    "monaco-editor": "0.52.2",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-intl": "10.1.26",

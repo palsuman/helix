@@ -32,6 +32,8 @@ export const STREAM_CHANNELS = {
   trustChanged: "trust:changed",
   /** Window registry changes (Task 2.4, REQ-ARCH-006). */
   windowChanged: "window:changed",
+  /** Indexed workspace search result batches (Task 4.5). */
+  searchResults: "search:results",
 } as const;
 
 export function streamEndpoint(

@@ -1,0 +1,92 @@
+.editor-surface {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  background: var(--helix-editor-background, #1e1f22);
+  color: var(--helix-editor-foreground, #dfe1e5);
+}
+
+.editor-surface__monaco {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.editor-surface__status {
+  display: flex;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-top: 1px solid var(--helix-card-border, #393b40);
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 11px;
+}
+
+.editor-find {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  inset-inline-end: 12px;
+  width: min(620px, calc(100% - 24px));
+  padding: 8px;
+  border: 1px solid var(--helix-card-border, #393b40);
+  background: var(--helix-card-background, #1e1f22);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 30%);
+}
+
+.editor-find__row,
+.editor-find__options {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-find__row input {
+  min-width: 0;
+  flex: 1;
+  height: 28px;
+  border: 1px solid var(--helix-card-border, #393b40);
+  background: var(--helix-frame-background, #2b2d30);
+  color: var(--helix-foreground, #dfe1e5);
+}
+
+.editor-find__row button {
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--helix-card-border, #393b40);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.editor-find__previous::before { content: "\2191"; }
+.editor-find__next::before { content: "\2193"; }
+.editor-find__close::before { content: "\00d7"; }
+
+.editor-find__count {
+  min-width: 60px;
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 11px;
+  text-align: center;
+}
+
+.editor-find__options {
+  margin-top: 6px;
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 11px;
+}
+
+.editor-notice {
+  z-index: 1;
+  margin: 0;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--helix-notice-border, #e3b341);
+  background: var(--helix-notice-background, #26282c);
+  color: var(--helix-notice-foreground, #ffe08a);
+  font-size: 12px;
+}

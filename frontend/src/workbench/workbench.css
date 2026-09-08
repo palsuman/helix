@@ -49,6 +49,7 @@ button {
   --workbench-titlebar-height: 40px;
   --workbench-activity-width: 42px;
   --workbench-statusbar-height: 24px;
+  --workbench-header-height: 36px;
   display: flex;
   min-width: 1024px;
   min-height: 600px;
@@ -254,7 +255,8 @@ button {
 
 .workbench-panel-tabs {
   display: flex;
-  height: 35px;
+  height: var(--workbench-header-height);
+  flex: 0 0 var(--workbench-header-height);
   align-items: center;
   gap: 4px;
   border-bottom: 1px solid var(--workbench-card-border);
@@ -417,7 +419,4 @@ button {
     --workbench-titlebar-height: 34px;
   }
 
-  .workbench-panel-tabs {
-    height: 30px;
-  }
 }

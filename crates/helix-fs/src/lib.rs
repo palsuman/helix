@@ -46,6 +46,7 @@ pub mod exclude;
 pub mod hash;
 pub mod listing;
 pub mod probe;
+pub mod search;
 pub mod service;
 pub mod watch;
 
@@ -57,7 +58,8 @@ pub use change::{ChangeKind, DEFAULT_DEBOUNCE, DEFAULT_MAX_HOLD, Debouncer, File
 pub use commands::{
     CHANNEL, FsChangeNotification, FsListRequest, FsListResponse, FsReadRequest, FsReadResponse,
     FsStatRequest, FsStatResponse, FsUnwatchRequest, FsUnwatchResponse, FsWatchRequest,
-    FsWatchResponse, FsWriteRequest, FsWriteResponse,
+    FsWatchResponse, FsWriteRequest, FsWriteResponse, ReplaceFileResult, ReplaceRequest,
+    ReplaceResponse, SearchResponse, SearchStatsResponse, UndoRequest,
 };
 pub use encoding::{Detection, EncodeOutcome, Encoding, SNIFF_BYTES, looks_binary};
 pub use eol::{EolInfo, LineEnding};
@@ -65,6 +67,7 @@ pub use exclude::{DEFAULT_EXCLUDE_GLOBS, ExclusionConfig, Exclusions};
 pub use hash::{ContentHash, hash_bytes, hash_file};
 pub use listing::{FileEntry, Listing};
 pub use probe::{NETWORK_LATENCY_THRESHOLD, POLL_INTERVAL, ProbeOutcome};
+pub use search::{SearchIndex, SearchMatch, SearchQuery, SearchService, SearchStats};
 pub use service::{
     DEFAULT_MAX_READ_BYTES, FileContent, FileSystemService, FsConfig, FsMetrics, WriteOptions,
     WriteOutcome,

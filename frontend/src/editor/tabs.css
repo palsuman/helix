@@ -1,0 +1,158 @@
+.editor-tabs {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  background: var(--helix-editor-background, #1e1f22);
+}
+
+.editor-tabs__bar {
+  display: flex;
+  min-width: 0;
+  height: var(--workbench-header-height, 36px);
+  min-height: var(--workbench-header-height, 36px);
+  flex: 0 0 var(--workbench-header-height, 36px);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--helix-card-border, #393b40);
+  background: var(--helix-card-background, #1e1f22);
+}
+
+.editor-tab {
+  display: inline-flex;
+  min-width: 120px;
+  max-width: 220px;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border: 0;
+  border-inline-end: 1px solid var(--helix-card-border, #393b40);
+  background: transparent;
+  color: var(--helix-foreground-muted, #9da0a8);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: start;
+}
+
+.editor-tab.is-active {
+  background: var(--helix-hover-background, #26282c);
+  color: var(--helix-foreground, #dfe1e5);
+}
+
+.editor-tab.is-preview .editor-tab__label {
+  font-style: italic;
+}
+
+.editor-tab__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab__dirty {
+  color: var(--helix-warning-foreground, #e3b341);
+}
+
+.editor-tab__dirty::before {
+  content: "\2022";
+}
+
+.editor-tab__close {
+  margin-inline-start: auto;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.editor-tab__close:hover,
+.editor-tab__close:focus-visible {
+  background: var(--helix-hover-background, #32343a);
+}
+
+.editor-tab__close::before,
+.editor-tabs__overflow summary::before,
+.editor-tabs__actions summary::before {
+  content: "\00d7";
+}
+
+.editor-tabs__overflow summary::before,
+.editor-tabs__actions summary::before {
+  content: "\2026";
+}
+
+.editor-tabs__overflow,
+.editor-tabs__actions {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 8px;
+}
+
+.editor-tabs__overflow summary,
+.editor-tabs__actions summary {
+  cursor: pointer;
+}
+
+.editor-tabs__overflow [role="menu"],
+.editor-tabs__actions [role="menu"] {
+  position: absolute;
+  z-index: 5;
+  top: 30px;
+  inset-inline-end: 4px;
+  display: grid;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid var(--helix-card-border, #393b40);
+  background: var(--helix-card-background, #1e1f22);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 30%);
+}
+
+.editor-tabs__overflow button,
+.editor-tabs__actions button {
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+
+.editor-tabs__overflow button:hover,
+.editor-tabs__actions button:hover {
+  background: var(--helix-hover-background, #32343a);
+}
+
+.editor-tabs__views {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.editor-tabs__prompt-backdrop {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 45%);
+}
+
+.editor-tabs__prompt {
+  width: min(420px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--helix-card-border, #393b40);
+  background: var(--helix-card-background, #1e1f22);
+  color: var(--helix-foreground, #dfe1e5);
+}
+
+.editor-tabs__prompt > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.editor-tabs__view {
+  width: 100%;
+  height: 100%;
+}

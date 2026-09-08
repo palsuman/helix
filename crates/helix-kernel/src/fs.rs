@@ -40,14 +40,15 @@ use helix_core::container::{
 use helix_core::error::AppError;
 use helix_core::health::{ServiceHealth, ServiceMetrics};
 use helix_fs::commands::{
-    FsListRequest, FsListResponse, FsReadRequest, FsReadResponse, FsStatRequest, FsStatResponse,
-    FsUnwatchRequest, FsUnwatchResponse, FsWatchRequest, FsWatchResponse, FsWriteRequest,
-    FsWriteResponse, LIST, READ, STAT, UNWATCH, WATCH, WRITE,
+    CANCEL_SEARCH, FsListRequest, FsListResponse, FsReadRequest, FsReadResponse, FsStatRequest,
+    FsStatResponse, FsUnwatchRequest, FsUnwatchResponse, FsWatchRequest, FsWatchResponse,
+    FsWriteRequest, FsWriteResponse, LIST, READ, REPLACE, ReplaceRequest, SEARCH, SEARCH_STATS,
+    STAT, SearchResponse, SearchStatsResponse, UNDO_REPLACE, UNWATCH, UndoRequest, WATCH, WRITE,
 };
 use helix_fs::{
     CHANNEL, ChangeListener, DEFAULT_PATH_BUDGET, Encoding, ExclusionConfig, FileChange,
-    FileSystemService, FsChangeNotification, FsConfig, LOG_SOURCE, LineEnding, WatchConfig,
-    WriteOptions,
+    FileSystemService, FsChangeNotification, FsConfig, LOG_SOURCE, LineEnding, SearchQuery,
+    SearchService, WatchConfig, WriteOptions,
 };
 use helix_ipc::IpcDispatcher;
 use helix_log::{Logger, log_info, log_warn};
@@ -198,6 +199,72 @@ pub fn register_commands(dispatcher: &mut IpcDispatcher, fs: Arc<FileSystemServi
         async move {
             fs.unwatch(&req.root)?;
             Ok::<FsUnwatchResponse, AppError>(FsUnwatchResponse { stopped: true })
+        }
+    });
+}
+
+pub fn register_search_commands(
+    dispatcher: &mut IpcDispatcher,
+    fs: Arc<FileSystemService>,
+    search: Arc<SearchService>,
+    hub: Arc<StreamHub>,
+) {
+    let query_search = search.clone();
+    let query_hub = hub.clone();
+    dispatcher.register(SEARCH, move |req: SearchQuery, _ctx| {
+        let search = query_search.clone();
+        let hub = query_hub.clone();
+        async move {
+            let matches = blocking(move || {
+                search
+                    .search(&req)
+                    .map_err(|error| AppError::permanent("SEARCH_FAILED", error.to_string()))
+            })
+            .await?;
+            let response = SearchResponse { matches };
+            hub.publish(
+                helix_fs::commands::SEARCH_CHANNEL,
+                serde_json::to_value(&response).unwrap(),
+            );
+            Ok::<SearchResponse, AppError>(response)
+        }
+    });
+
+    let stats_search = search.clone();
+    dispatcher.register(SEARCH_STATS, move |req: SearchQuery, _ctx| {
+        let search = stats_search.clone();
+        async move {
+            let stats = search.stats(&req.root).unwrap_or_default();
+            Ok::<SearchStatsResponse, AppError>(SearchStatsResponse { stats })
+        }
+    });
+
+    let replace_fs = fs.clone();
+    let replace_search = search.clone();
+    dispatcher.register(REPLACE, move |req: ReplaceRequest, _ctx| {
+        let fs = replace_fs.clone();
+        let search = replace_search.clone();
+        async move { search.replace(&fs, &req) }
+    });
+
+    let undo_fs = fs.clone();
+    let undo_search = search.clone();
+    dispatcher.register(UNDO_REPLACE, move |req: UndoRequest, _ctx| {
+        let fs = undo_fs.clone();
+        let search = undo_search.clone();
+        async move { search.undo(&fs, &req) }
+    });
+
+    let cancel_search = search.clone();
+    dispatcher.register(CANCEL_SEARCH, move |req: SearchQuery, _ctx| {
+        let search = cancel_search.clone();
+        async move {
+            if let Some(cancel_id) = req.query.strip_prefix("cancel:") {
+                search.cancel(cancel_id);
+            }
+            Ok::<SearchResponse, AppError>(SearchResponse {
+                matches: Vec::new(),
+            })
         }
     });
 }

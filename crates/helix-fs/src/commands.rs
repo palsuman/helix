@@ -13,6 +13,7 @@ use crate::change::FileChange;
 use crate::encoding::Encoding;
 use crate::eol::LineEnding;
 use crate::listing::{FileEntry, Listing};
+use crate::search::{SearchMatch, SearchStats};
 use crate::service::{FileContent, WriteOutcome};
 use crate::watch::RootReport;
 
@@ -23,6 +24,12 @@ pub const LIST: &str = "fs.list";
 pub const STAT: &str = "fs.stat";
 pub const WATCH: &str = "fs.watch";
 pub const UNWATCH: &str = "fs.unwatch";
+pub const SEARCH: &str = "search.query";
+pub const SEARCH_STATS: &str = "search.stats";
+pub const SEARCH_CHANNEL: &str = "search:results";
+pub const REPLACE: &str = "search.replace";
+pub const UNDO_REPLACE: &str = "search.undo";
+pub const CANCEL_SEARCH: &str = "search.cancel";
 
 /// Streaming channel carrying debounced change batches (REQ-FS-004.1).
 ///
@@ -148,6 +155,20 @@ pub struct FsChangeNotification {
     pub changes: Vec<FileChange>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct SearchResponse {
+    pub matches: Vec<SearchMatch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct SearchStatsResponse {
+    pub stats: SearchStats,
+}
+
+pub use crate::search::{ReplaceFileResult, ReplaceRequest, ReplaceResponse, UndoRequest};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,6 +179,7 @@ mod tests {
             assert!(name.starts_with("fs."), "{name}");
         }
         assert_eq!(CHANNEL, "fs:changed");
+        assert_eq!(SEARCH, "search.query");
     }
 
     #[test]

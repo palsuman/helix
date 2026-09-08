@@ -396,7 +396,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: switch locale to a pseudo-locale and watch every string change, proving nothing is hardcoded; move the cursor through an emoji ZWJ sequence one grapheme at a time_
     - _Requirements: REQ-WB-005_
 
-- [ ] 3. Phase 3 — Test Infrastructure (Tier 1)
+- [x] 3. Phase 3 — Test Infrastructure (Tier 1)
 
   Goal: the harnesses that keep every later phase honest, in place before the code they verify.
 
@@ -470,7 +470,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
 
   Goal: the full editing experience, plus the search, navigation, and explorer surfaces a developer needs to move around a project.
 
-  - [ ] 4.1 Integrate Monaco Editor
+  - [x] 4.1 Integrate Monaco Editor
     - Monaco installed and lazy-loaded, out of the initial bundle
     - Open and close wired to the kernel file service, model per open file, disposed on close
     - Dirty state owned by the kernel, reflected in the editor
@@ -486,7 +486,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: edit and save a TypeScript file and verify it on disk; open a 10MB file into large file mode; open a PNG and get the binary notice_
     - _Requirements: REQ-ED-001_
 
-  - [ ] 4.2 Implement editor tab management
+  - [x] 4.2 Implement editor tab management
     - Tab bar with horizontal scrolling and an overflow menu listing all open editors
     - Drag-and-drop reordering
     - Pinning, with pinned tabs held left
@@ -501,7 +501,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open ten files, reorder, pin two, split, then close all and get prompted per dirty file; restart and find tabs restored_
     - _Requirements: REQ-ED-001_
 
-  - [ ] 4.3 Implement file lifecycle and buffer management
+  - [x] 4.3 Implement file lifecycle and buffer management
     - Untitled buffers (Ctrl+N) with language mode selection, persisted unsaved via the WAL
     - Save As through the native dialog, converting the buffer to a file editor
     - Save All with per-file error reporting that does not abort remaining saves
@@ -521,7 +521,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: type into an untitled buffer, kill the app, reopen and find it intact; Save As to disk; switch the file from CRLF to LF and save; drag a folder from the OS onto the window and add it as a root_
     - _Requirements: REQ-ED-006_
 
-  - [ ] 4.4 Implement single-file find and replace
+  - [x] 4.4 Implement single-file find and replace
     - Monaco find/replace widget wired up
     - Regex, case-sensitive, and whole-word options verified
     - Shortcuts: Ctrl+F, Ctrl+H, Enter and Shift+Enter for next and previous
@@ -532,7 +532,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: find with a regex, see highlights and the match count, and replace within a selection only_
     - _Requirements: REQ-ED-001_
 
-  - [ ] 4.5 Implement search and index service
+  - [x] 4.5 Implement search and index service
     - Single ripgrep integration in the kernel, exposed as the one text search engine for every consumer
     - Search API over IPC returning a correlation ID, with results streamed over the WebSocket channel
     - Trigram index for file paths, backing fuzzy quick open
@@ -551,7 +551,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open a 50k-file workspace, watch the index build in the background while search already works, then reopen the app and see the index load from disk instantly_
     - _Requirements: REQ-SEARCH-001, REQ-NFR-001_
 
-  - [ ] 4.6 Implement workspace find and replace
+  - [x] 4.6 Implement workspace find and replace
     - Search panel consuming the service from 4.5 with no second engine
     - Query input with regex, case, whole-word, include and exclude globs, and a respect-gitignore toggle
     - Streaming results grouped by file with configurable context lines (0-5)

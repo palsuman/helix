@@ -219,8 +219,10 @@
 
 .notification-center-header {
   display: flex;
+  height: var(--workbench-header-height, 36px);
   flex-shrink: 0;
-  min-height: 38px;
+  min-height: var(--workbench-header-height, 36px);
+  flex-basis: var(--workbench-header-height, 36px);
   align-items: center;
   justify-content: space-between;
   gap: 8px;

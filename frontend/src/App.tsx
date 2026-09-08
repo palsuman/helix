@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { lazy, useEffect, useMemo } from "react";
 import { useStore } from "zustand";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CommandPalette, CommandRegistry, registerWorkbenchCommandHandlers } from "./commands";
@@ -14,6 +14,10 @@ import { WorkbenchShell, useLayoutStore } from "./workbench";
 import { KeybindingEditor, KeybindingService, displayShortcut } from "./keybindings";
 import { LocalizationProvider, useMessage } from "./localization";
 
+const LazyEditorTabs = lazy(() =>
+  import("./editor/EditorTabs").then((module) => ({ default: module.EditorTabs })),
+);
+
 export interface AppProps {
   client?: IpcClient;
   /** Retained for callers that inject the shared stream client; feature views consume it later. */
@@ -21,6 +25,8 @@ export interface AppProps {
   supervisorClient?: SupervisorClient;
   /** Native Tauri label; injectable for browser tests and embedders. */
   windowId?: string;
+  /** Optional file path to open in the primary editor group. */
+  editorPath?: string;
 }
 
 function nativeWindowId() {
@@ -47,6 +53,7 @@ function LocalizedWorkbench({
   streamClient = stream,
   supervisorClient = supervisor,
   windowId = nativeWindowId(),
+  editorPath,
 }: AppProps) {
   const t = useMessage();
   useTheme(streamClient, themeService);
@@ -97,7 +104,17 @@ function LocalizedWorkbench({
           onToggle={() => setNotificationsOpen(!notificationsOpen)}
         />
       }
-      editor={bindingState.editorOpen ? <KeybindingEditor service={keybindings} /> : null}
+      editor={
+        bindingState.editorOpen ? (
+          <KeybindingEditor service={keybindings} />
+        ) : (
+          <LazyEditorTabs
+            client={client}
+            initialPath={editorPath}
+            onSplit={() => useLayoutStore.getState().splitEditor("horizontal")}
+          />
+        )
+      }
       statusLeft={[
         {
           id: "keybinding-chord",

@@ -275,9 +275,7 @@ impl WindowManager {
         if let Some(mut existing) = inner.windows.get(&request.id).cloned() {
             self.mark_focused(&mut inner, &request.id);
             existing.focused = true;
-            inner
-                .windows
-                .insert(request.id.clone(), existing.clone());
+            inner.windows.insert(request.id.clone(), existing.clone());
             inner.focused_id = Some(request.id.clone());
             drop(inner);
             self.persist();
