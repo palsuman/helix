@@ -1,0 +1,81 @@
+.quick-open-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 9vh;
+  background: rgb(0 0 0 / 28%);
+}
+
+.quick-open {
+  width: min(680px, calc(100vw - 32px));
+  max-height: 70vh;
+  overflow: hidden;
+  color: var(--helix-foreground, #d8dee9);
+  background: var(--helix-editor-background, #1e222a);
+  border: 1px solid var(--helix-border, #4c566a);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 45%);
+}
+
+.quick-open__input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--helix-border, #4c566a);
+}
+
+.quick-open__input-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  color: inherit;
+  background: var(--helix-input-background, #2e3440);
+  border: 1px solid var(--helix-focus-border, #88c0d0);
+  border-radius: 4px;
+}
+
+.quick-open__results {
+  max-height: 52vh;
+  overflow: auto;
+  padding: 4px;
+}
+.quick-open__option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 9px;
+  border-radius: 4px;
+  cursor: default;
+}
+.quick-open__option.is-active {
+  background: var(--helix-list-active-background, #434c5e);
+}
+.quick-open__option > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.quick-open__option strong,
+.quick-open__option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-open__option small,
+.quick-open__hint,
+.quick-open footer {
+  color: var(--helix-description-foreground, #9aa3b2);
+}
+.quick-open__state,
+.quick-open__hint {
+  margin: 0;
+  padding: 12px;
+}
+.quick-open footer {
+  padding: 6px 10px;
+  border-top: 1px solid var(--helix-border, #4c566a);
+  font-size: 0.78rem;
+}

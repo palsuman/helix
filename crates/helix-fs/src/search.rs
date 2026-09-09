@@ -51,6 +51,28 @@ pub struct SearchMatch {
     pub version_hash: String,
 }
 
+/// A path-index query used by Quick Open. Content is deliberately absent: the
+/// path index is the single source for this surface and file contents never
+/// cross IPC just to render a picker row.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct QuickOpenQuery {
+    pub root: String,
+    pub query: String,
+    pub max_results: usize,
+    #[serde(default)]
+    pub recent_files: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct QuickOpenMatch {
+    pub path: String,
+    pub relative_path: String,
+    pub file_name: String,
+    pub score: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(export, export_to = "../../../frontend/src/generated/")]
 pub struct ReplaceRequest {
@@ -158,6 +180,13 @@ impl SearchIndex {
         Ok(self.stats())
     }
 
+    /// Populate only path data for the Quick Open fallback. Unlike the full
+    /// content index this never reads file bodies, so an unbuilt index does not
+    /// make the picker wait for content indexing.
+    fn build_paths(&mut self) -> io::Result<()> {
+        self.walk_paths(self.root.clone())
+    }
+
     pub fn update_path(&mut self, path: &Path) -> io::Result<()> {
         let key = path.to_string_lossy().into_owned();
         self.remove_path(&key);
@@ -248,6 +277,81 @@ impl SearchIndex {
         results
     }
 
+    /// Rank files from the path trigram index. Exact filename matches form the
+    /// first tier, path-segment matches the second, and subsequence matches the
+    /// third. Recency only reorders within a tier, preserving match quality.
+    pub fn quick_open(&self, query: &QuickOpenQuery) -> Vec<QuickOpenMatch> {
+        let needle = query.query.trim().to_lowercase();
+        let recent = query
+            .recent_files
+            .iter()
+            .enumerate()
+            .map(|(index, path)| (path.as_str(), (query.recent_files.len() - index) as i64))
+            .collect::<HashMap<_, _>>();
+
+        let mut candidates: Vec<&str> = if needle.chars().count() >= 3 {
+            let keys = trigrams(&needle);
+            // Start from the rarest trigram. Counting every posting for every
+            // key makes a common prefix such as "component" O(keys × files).
+            let indexed = keys
+                .iter()
+                .filter_map(|key| self.path_trigrams.get(key))
+                .min_by_key(|paths| paths.len())
+                .map(|paths| {
+                    paths
+                        .iter()
+                        .filter(|path| {
+                            let normalized = path.to_lowercase();
+                            keys.iter().all(|key| normalized.contains(key))
+                        })
+                        .map(String::as_str)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            // A trigram intersection cannot represent every subsequence query.
+            // Falling back to the index's file keys retains fuzzy semantics.
+            if indexed.is_empty() {
+                self.files.keys().map(String::as_str).collect()
+            } else {
+                indexed
+            }
+        } else {
+            self.files.keys().map(String::as_str).collect()
+        };
+        candidates.sort_unstable();
+        candidates.dedup();
+
+        let mut matches = candidates
+            .into_iter()
+            .filter_map(|path| {
+                let relative = Path::new(path)
+                    .strip_prefix(&self.root)
+                    .unwrap_or_else(|_| Path::new(path))
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let file_name = Path::new(path)
+                    .file_name()
+                    .map(|value| value.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| relative.clone());
+                path_score(&file_name, &relative, &needle).map(|base| QuickOpenMatch {
+                    score: base + recent.get(path).copied().unwrap_or_default().min(99),
+                    path: path.to_string(),
+                    relative_path: relative,
+                    file_name,
+                })
+            })
+            .collect::<Vec<_>>();
+        matches.sort_by(|left, right| {
+            right
+                .score
+                .cmp(&left.score)
+                .then_with(|| left.relative_path.len().cmp(&right.relative_path.len()))
+                .then_with(|| left.relative_path.cmp(&right.relative_path))
+        });
+        matches.truncate(query.max_results.max(1));
+        matches
+    }
+
     pub fn history(&self) -> Vec<SearchQuery> {
         self.history.iter().cloned().collect()
     }
@@ -300,6 +404,32 @@ impl SearchIndex {
         Ok(())
     }
 
+    fn walk_paths(&mut self, directory: PathBuf) -> io::Result<()> {
+        for entry in fs::read_dir(directory)? {
+            let path = entry?.path();
+            if self.exclusions.is_excluded(&path, path.is_dir()) {
+                continue;
+            }
+            if path.is_dir() {
+                self.walk_paths(path)?;
+            } else {
+                let key = path.to_string_lossy().into_owned();
+                add_refs(&mut self.path_trigrams, &key, &key);
+                self.files.insert(
+                    key.clone(),
+                    IndexedFile {
+                        path: key,
+                        text: String::new(),
+                        bytes: 0,
+                        modified_ms: 0,
+                        hash: String::new(),
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
     fn index_file(&mut self, path: &Path) -> io::Result<()> {
         let metadata = fs::metadata(path)?;
         if metadata.len() > MAX_INDEXED_FILE_BYTES
@@ -335,6 +465,7 @@ pub struct SearchService {
     indexes: Arc<RwLock<HashMap<String, SearchIndex>>>,
     undo: Arc<Mutex<HashMap<String, Vec<(String, String, String)>>>>,
     cancelled: Arc<Mutex<std::collections::HashSet<String>>>,
+    building: Arc<Mutex<std::collections::HashSet<String>>>,
 }
 
 impl SearchService {
@@ -343,6 +474,7 @@ impl SearchService {
             indexes: Arc::new(RwLock::new(HashMap::new())),
             undo: Arc::new(Mutex::new(HashMap::new())),
             cancelled: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            building: Arc::new(Mutex::new(std::collections::HashSet::new())),
         }
     }
 
@@ -355,6 +487,33 @@ impl SearchService {
             index.build()?;
         }
         Ok(index.search(query))
+    }
+
+    pub fn quick_open(&self, query: &QuickOpenQuery) -> io::Result<(Vec<QuickOpenMatch>, bool)> {
+        if let Some(index) = self.indexes.read().unwrap().get(&query.root)
+            && index.stats().indexed_files > 0
+        {
+            return Ok((index.quick_open(query), false));
+        }
+
+        let mut fallback = SearchIndex::new(&query.root, ExclusionConfig::default());
+        fallback.build_paths()?;
+        let matches = fallback.quick_open(query);
+
+        let should_start = self.building.lock().unwrap().insert(query.root.clone());
+        if should_start {
+            let root = query.root.clone();
+            let indexes = self.indexes.clone();
+            let building = self.building.clone();
+            std::thread::spawn(move || {
+                let mut index = SearchIndex::new(&root, ExclusionConfig::default());
+                if index.build().is_ok() {
+                    indexes.write().unwrap().insert(root.clone(), index);
+                }
+                building.lock().unwrap().remove(&root);
+            });
+        }
+        Ok((matches, true))
     }
 
     pub fn cancel(&self, id: &str) {
@@ -560,6 +719,37 @@ fn trigrams(value: &str) -> Vec<String> {
         .collect()
 }
 
+fn path_score(file_name: &str, relative_path: &str, needle: &str) -> Option<i64> {
+    if needle.is_empty() {
+        return Some(1_000_000);
+    }
+    let name = file_name.to_lowercase();
+    let path = relative_path.to_lowercase();
+    if name == needle {
+        return Some(3_000_000);
+    }
+    let best_segment = path
+        .split('/')
+        .filter_map(|segment| segment.find(needle).map(|offset| (segment, offset)))
+        .max_by_key(|(segment, offset)| (i64::from(*offset == 0), -(segment.len() as i64)))
+        .map(|(segment, offset)| 2_000_000 - (offset as i64 * 100) - segment.len() as i64);
+    if best_segment.is_some() {
+        return best_segment;
+    }
+
+    let mut position = 0usize;
+    let mut first = None;
+    let mut last = 0usize;
+    for character in needle.chars() {
+        let found = path[position..].find(character)? + position;
+        first.get_or_insert(found);
+        last = found;
+        position = found + character.len_utf8();
+    }
+    let span = last.saturating_sub(first.unwrap_or_default());
+    Some(1_000_000 - span as i64 * 100 - path.len() as i64)
+}
+
 fn add_refs(index: &mut HashMap<String, Vec<String>>, value: &str, path: &str) {
     for key in trigrams(value) {
         index.entry(key).or_default().push(path.to_string());
@@ -581,6 +771,7 @@ fn remove_refs(index: &mut HashMap<String, Vec<String>>, value: &str, path: &str
 mod tests {
     use super::*;
     use crate::testutil::TempDir;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn indexes_searches_and_excludes_generated_directories() {
@@ -661,6 +852,86 @@ mod tests {
         assert_eq!(
             replace_text("cat cater", &whole_word, "dog").unwrap(),
             "dog cater"
+        );
+    }
+
+    #[test]
+    fn quick_open_prefers_filename_then_segment_then_fuzzy_and_honours_recency() {
+        let dir = TempDir::new("quick-open-rank");
+        let exact = dir.write("nested/main.rs", "exact");
+        dir.write("main.rs/other.txt", "segment");
+        dir.write("src/m_a_i_n_notes.txt", "fuzzy");
+        let recent = dir.write("recent/main.rs", "recent");
+        let mut index = SearchIndex::new(dir.path(), ExclusionConfig::permissive());
+        index.build().unwrap();
+
+        let matches = index.quick_open(&QuickOpenQuery {
+            root: dir.path().display().to_string(),
+            query: "main.rs".into(),
+            max_results: 20,
+            recent_files: vec![recent.display().to_string()],
+        });
+
+        assert_eq!(matches[0].path, recent.display().to_string());
+        assert_eq!(matches[1].path, exact.display().to_string());
+        assert!(matches[0].score >= 3_000_000);
+        assert!(
+            matches
+                .iter()
+                .any(|item| item.relative_path == "main.rs/other.txt")
+        );
+    }
+
+    #[test]
+    fn first_quick_open_request_reports_the_directory_scan_fallback() {
+        let dir = TempDir::new("quick-open-fallback");
+        dir.write("src/application.ts", "export {};");
+        let service = SearchService::new();
+        let query = QuickOpenQuery {
+            root: dir.path().display().to_string(),
+            query: "app".into(),
+            max_results: 10,
+            recent_files: vec![],
+        };
+        let (first, indexing) = service.quick_open(&query).unwrap();
+        assert_eq!(first[0].relative_path, "src/application.ts");
+        assert!(indexing);
+        let started = Instant::now();
+        loop {
+            let (_, subsequent_indexing) = service.quick_open(&query).unwrap();
+            if !subsequent_indexing {
+                break;
+            }
+            assert!(started.elapsed() < Duration::from_secs(2));
+            std::thread::yield_now();
+        }
+    }
+
+    #[test]
+    fn quick_open_queries_a_hundred_thousand_path_index_within_fifty_ms() {
+        let mut index = SearchIndex::new("/workspace", ExclusionConfig::permissive());
+        for number in 0..100_000 {
+            let path = format!("/workspace/src/component_{number:05}.ts");
+            index.insert(IndexedFile {
+                path,
+                text: String::new(),
+                bytes: 0,
+                modified_ms: 0,
+                hash: String::new(),
+            });
+        }
+        let started = Instant::now();
+        let matches = index.quick_open(&QuickOpenQuery {
+            root: "/workspace".into(),
+            query: "99999".into(),
+            max_results: 100,
+            recent_files: vec![],
+        });
+        assert!(!matches.is_empty());
+        assert!(
+            started.elapsed() < Duration::from_millis(50),
+            "100k-file Quick Open took {:?}",
+            started.elapsed()
         );
     }
 }

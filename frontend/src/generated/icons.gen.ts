@@ -5,28 +5,34 @@
  * Plugin/theme-supplied IDs use the runtime placeholder path.
  */
 export type IconId =
-  | "add"
-  | "bell"
-  | "clear-all"
-  | "close"
-  | "edit"
-  | "error"
-  | "file"
-  | "folder-open"
-  | "folder"
-  | "info"
-  | "keyboard"
-  | "panel-bottom"
-  | "panel-side"
-  | "placeholder"
-  | "record"
-  | "reset"
-  | "spinner"
-  | "split-horizontal"
-  | "split-vertical"
-  | "swap-horizontal"
-  | "terminal"
-  | "warning";
+  "add" |
+  "bell" |
+  "chevron-down" |
+  "chevron-right" |
+  "clear-all" |
+  "close" |
+  "edit" |
+  "error" |
+  "explorer" |
+  "file" |
+  "folder-open" |
+  "folder" |
+  "info" |
+  "keyboard" |
+  "panel-bottom" |
+  "panel-side" |
+  "placeholder" |
+  "record" |
+  "reset" |
+  "search" |
+  "source-control" |
+  "spinner" |
+  "split-horizontal" |
+  "split-vertical" |
+  "swap-horizontal" |
+  "terminal" |
+  "warning"
+;
 
 /**
  * Icon size scale (REQ-ICON-001.3).
@@ -45,10 +51,13 @@ export const ICON_SIZE_PX = {
 export const KNOWN_ICON_IDS = [
   "add",
   "bell",
+  "chevron-down",
+  "chevron-right",
   "clear-all",
   "close",
   "edit",
   "error",
+  "explorer",
   "file",
   "folder-open",
   "folder",
@@ -59,6 +68,8 @@ export const KNOWN_ICON_IDS = [
   "placeholder",
   "record",
   "reset",
+  "search",
+  "source-control",
   "spinner",
   "split-horizontal",
   "split-vertical",
@@ -69,6 +80,7 @@ export const KNOWN_ICON_IDS = [
 
 /** Directional icons mirrored automatically when the document is RTL. */
 export const RTL_MIRRORED_ICON_IDS = [
+  "chevron-right",
   "panel-side",
   "swap-horizontal",
 ] as const satisfies readonly IconId[];

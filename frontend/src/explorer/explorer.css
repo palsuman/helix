@@ -1,0 +1,136 @@
+.file-explorer {
+  position: relative;
+  overflow: hidden;
+}
+.file-explorer button {
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+}
+.file-explorer button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.file-explorer .workbench-view-tools button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 28px;
+  padding: 0;
+}
+.file-explorer button:hover {
+  background: var(--helix-hover-background, #32343a);
+}
+.file-explorer button:focus-visible,
+.file-explorer input:focus-visible,
+.explorer-tree:focus-visible {
+  outline: 2px solid var(--workbench-accent);
+  outline-offset: -2px;
+}
+.file-explorer input {
+  min-width: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--workbench-card-border);
+  border-radius: 4px;
+  background: var(--workbench-frame-background);
+  padding: 5px 8px;
+}
+.explorer-filter {
+  margin: 8px 12px;
+}
+.explorer-message {
+  margin: 4px 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.explorer-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding-inline-end: 8px;
+  font-size: 12px;
+  cursor: default;
+  user-select: none;
+}
+.explorer-row:hover {
+  background: var(--helix-hover-background, #32343a);
+}
+.explorer-row.is-selected {
+  background: var(--helix-selection-background, #264f78);
+}
+.explorer-chevron {
+  display: flex;
+  flex: 0 0 16px;
+}
+.explorer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.explorer-badge {
+  color: var(--helix-warning-foreground, #e3b341);
+  font-variant-numeric: tabular-nums;
+}
+.explorer-inline-edit {
+  display: flex;
+  gap: 4px;
+  padding: 6px 12px;
+}
+.explorer-inline-edit input {
+  flex: 1;
+}
+.explorer-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--workbench-card-border);
+  border-radius: 6px;
+  background: var(--workbench-card-background);
+  box-shadow: 0 4px 16px #0006;
+}
+.explorer-menu button {
+  text-align: start;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.explorer-confirm {
+  position: fixed;
+  z-index: 61;
+  inset: 0;
+  margin: auto;
+  width: min(480px, 90vw);
+  max-height: 80vh;
+  color: var(--workbench-foreground);
+  border: 1px solid var(--workbench-card-border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--workbench-card-background);
+  font-size: 12px;
+  overflow: auto;
+}
+.explorer-confirm::backdrop {
+  background: #0006;
+}
+.explorer-confirm ul {
+  padding-inline-start: 16px;
+  overflow-wrap: anywhere;
+}
+.explorer-confirm button {
+  padding: 6px 12px;
+  border-color: var(--workbench-card-border);
+}

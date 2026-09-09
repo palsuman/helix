@@ -12,6 +12,7 @@ export function defaultBindings(platform: KeybindingPlatform): KeybindingRule[] 
   const modifier = platform === "mac" ? "meta" : "ctrl";
   return [
     { key: `${modifier}+shift+p`, command: "workbench.action.showCommands" },
+    { key: `${modifier}+p`, command: "workbench.action.quickOpen" },
     { key: "f1", command: "workbench.action.showCommands" },
     { key: `${modifier}+k ${modifier}+s`, command: "workbench.action.openGlobalKeybindings" },
     { key: `${modifier}+k z`, command: "workbench.action.toggleZenMode" },

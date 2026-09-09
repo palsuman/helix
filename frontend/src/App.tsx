@@ -1,4 +1,4 @@
-import { lazy, useEffect, useMemo } from "react";
+import { lazy, useEffect, useMemo, useState } from "react";
 import { useStore } from "zustand";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { CommandPalette, CommandRegistry, registerWorkbenchCommandHandlers } from "./commands";
@@ -8,11 +8,18 @@ import type { StreamClient } from "./stream";
 import { stream } from "./stream";
 import { RecoveryOverlay, type SupervisorClient, supervisor } from "./supervisor";
 import { ThemeService, applyMonacoTheme, useTheme } from "./theme";
-import { injectIconStyles } from "./icons";
+import { Icon, injectIconStyles } from "./icons";
+import { ClosePrimaryPanelButton } from "./workbench/ClosePrimaryPanelButton";
+import { FileExplorer } from "./explorer/FileExplorer";
 import { NotificationCenter, NotificationCenterButton, NotificationToasts } from "./notifications";
 import { WorkbenchShell, useLayoutStore } from "./workbench";
 import { KeybindingEditor, KeybindingService, displayShortcut } from "./keybindings";
 import { LocalizationProvider, useMessage } from "./localization";
+import { QuickOpen } from "./quickopen";
+import { navigateEditor } from "./editor/navigation";
+import { WorkspaceSearchPanel } from "./search";
+import { listWorkspaces } from "./workbench/commands";
+import type { WorkspaceRoot } from "./generated/WorkspaceRoot";
 
 const LazyEditorTabs = lazy(() =>
   import("./editor/EditorTabs").then((module) => ({ default: module.EditorTabs })),
@@ -48,6 +55,55 @@ function setNotificationsOpen(open: boolean) {
   else layout.setSecondarySidebarVisible(open);
 }
 
+function WorkspaceSearchActivity({
+  client,
+  fallbackPath,
+}: {
+  client: IpcClient;
+  fallbackPath?: string;
+}) {
+  const t = useMessage();
+  const [root, setRoot] = useState(() => fallbackPath?.split("/").slice(0, -1).join("/") ?? "");
+
+  useEffect(() => {
+    let active = true;
+    void listWorkspaces(client).then((response) => {
+      if (!active) return;
+      const next = response.workspaces
+        .flatMap((workspace) => workspace.roots)
+        .find((candidate: WorkspaceRoot) => candidate.availability === "available")?.path;
+      if (next) setRoot(next);
+    });
+    return () => {
+      active = false;
+    };
+  }, [client]);
+
+  if (!root)
+    return (
+      <section className="workbench-sidebar-view" aria-label={t("workspaceSearchTitle")}>
+        <header className="workbench-view-header">
+          <h2>{t("workspaceSearchTitle")}</h2>
+          <ClosePrimaryPanelButton />
+        </header>
+        <div className="workbench-view-empty">
+          <Icon id="search" size="lg" />
+          <p>{t("workspaceSearchNoWorkspace")}</p>
+        </div>
+      </section>
+    );
+  return (
+    <WorkspaceSearchPanel
+      key={root}
+      client={client}
+      root={root}
+      onOpenMatch={(path, line) =>
+        navigateEditor({ groupId: useLayoutStore.getState().activeEditorGroup, path, line })
+      }
+    />
+  );
+}
+
 function LocalizedWorkbench({
   client = ipc,
   streamClient = stream,
@@ -80,6 +136,16 @@ function LocalizedWorkbench({
     <WorkbenchShell
       client={client}
       windowId={windowId}
+      titleBar={
+        <img
+          className="workbench-brand-logo"
+          src="/helix-logo.svg"
+          alt={t("helixLogo")}
+          width={24}
+          height={24}
+          draggable={false}
+        />
+      }
       overlay={
         <>
           <RecoveryOverlay client={supervisorClient} />
@@ -92,11 +158,24 @@ function LocalizedWorkbench({
               return key ? displayShortcut(key, keybindings.platform) : null;
             }}
           />
+          <QuickOpen
+            client={client}
+            registry={commandRegistry}
+            context={commandContext}
+            onOpen={(path, split, line) => {
+              if (split) useLayoutStore.getState().splitEditor("horizontal");
+              const groupId = useLayoutStore.getState().activeEditorGroup;
+              navigateEditor({ groupId, path, ...(line === undefined ? {} : { line }) });
+            }}
+            onLine={(line) =>
+              navigateEditor({ groupId: useLayoutStore.getState().activeEditorGroup, line })
+            }
+          />
         </>
       }
-      activities={[]}
       panels={[]}
-      leftPanel={null}
+      explorerView={<FileExplorer client={client} streamClient={streamClient} />}
+      searchView={<WorkspaceSearchActivity client={client} fallbackPath={editorPath} />}
       rightPanel={<NotificationCenter onClose={() => setNotificationsOpen(false)} />}
       rightActivityRail={
         <NotificationCenterButton
@@ -104,13 +183,14 @@ function LocalizedWorkbench({
           onToggle={() => setNotificationsOpen(!notificationsOpen)}
         />
       }
-      editor={
-        bindingState.editorOpen ? (
+      editor={(groupId, index) =>
+        bindingState.editorOpen && index === 0 ? (
           <KeybindingEditor service={keybindings} />
         ) : (
           <LazyEditorTabs
             client={client}
-            initialPath={editorPath}
+            groupId={groupId}
+            initialPath={index === 0 ? editorPath : undefined}
             onSplit={() => useLayoutStore.getState().splitEditor("horizontal")}
           />
         )

@@ -48,6 +48,7 @@ button {
   --workbench-card-radius: 8px;
   --workbench-titlebar-height: 40px;
   --workbench-activity-width: 42px;
+  --workbench-activity-height: 36px;
   --workbench-statusbar-height: 24px;
   --workbench-header-height: 36px;
   display: flex;
@@ -71,6 +72,13 @@ button {
   flex: 0 0 var(--workbench-titlebar-height);
   align-items: center;
   padding: 0 12px;
+  user-select: none;
+}
+
+.workbench-brand-logo {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
   user-select: none;
 }
 
@@ -137,8 +145,14 @@ button {
 .workbench-activity button,
 .workbench-auxiliary-activity button {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 32px;
   min-height: 32px;
+  height: var(--workbench-activity-height);
+  flex: 0 0 var(--workbench-activity-height);
+  padding: 0;
   margin: 2px 0;
   border: 0;
   border-radius: 6px;
@@ -146,6 +160,16 @@ button {
   color: var(--workbench-muted-foreground);
   cursor: pointer;
   font-size: 20px;
+}
+
+.workbench-activity button > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.workbench-activity button .icon {
+  color: inherit;
 }
 
 .workbench-activity button:hover,
@@ -188,7 +212,93 @@ button {
 
 .workbench-sidebar {
   min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workbench-sidebar > div {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
   overflow: auto;
+}
+
+.workbench-sidebar-view {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.workbench-view-header {
+  display: flex;
+  flex: 0 0 var(--workbench-header-height, 36px);
+  min-height: var(--workbench-header-height, 36px);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--helix-card-border, #393b40);
+  padding: 4px 8px 4px 12px;
+}
+
+.workbench-view-header h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.workbench-view-tools {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.workbench-view-header .workbench-view-close {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workbench-view-header .workbench-view-close:hover {
+  background: var(--helix-hover-background, #32343a);
+}
+
+.workbench-view-close:focus-visible {
+  outline: 2px solid var(--workbench-accent);
+  outline-offset: -2px;
+}
+
+.workbench-view-empty {
+  display: flex;
+  flex: 1;
+  min-height: 120px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--helix-foreground-muted, #9da0a8);
+  font-size: 12px;
+}
+
+.workbench-view-empty p {
+  margin: 0;
+  text-align: center;
 }
 
 .workbench-editor {
@@ -418,5 +528,4 @@ button {
   .workbench {
     --workbench-titlebar-height: 34px;
   }
-
 }

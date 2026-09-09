@@ -22,6 +22,9 @@ const LazyExplorer = lazy(() =>
 const LazyRightPanel = lazy(() =>
   import("./PlaceholderViews").then((module) => ({ default: module.RightPanelView })),
 );
+const LazySourceControl = lazy(() =>
+  import("./PlaceholderViews").then((module) => ({ default: module.SourceControlView })),
+);
 const LazyProblems = lazy(() =>
   import("./PlaceholderViews").then((module) => ({ default: module.ProblemsView })),
 );
@@ -52,6 +55,9 @@ interface WorkbenchShellProps {
   activities?: readonly ActivityRegistration[];
   panels?: readonly PanelRegistration[];
   leftPanel?: ReactNode;
+  /** Optional real view for the built-in search activity. */
+  searchView?: ReactNode;
+  explorerView?: ReactNode;
   rightPanel?: ReactNode;
   leftActivityRail?: ReactNode;
   rightActivityRail?: ReactNode;
@@ -86,6 +92,8 @@ export function WorkbenchShell({
   activities,
   panels,
   leftPanel,
+  searchView,
+  explorerView,
   rightPanel,
   leftActivityRail,
   rightActivityRail,
@@ -100,16 +108,26 @@ export function WorkbenchShell({
   const resolvedActivities = useMemo(
     () =>
       activities ?? [
-        { id: "explorer", label: t("workbenchExplorer"), icon: "◇", view: <LazyExplorer /> },
-        { id: "search", label: t("workbenchSearch"), icon: "⌕", view: <LazyExplorer /> },
+        {
+          id: "explorer",
+          label: t("workbenchExplorer"),
+          icon: <Icon id="explorer" size="lg" />,
+          view: explorerView ?? <LazyExplorer />,
+        },
+        {
+          id: "search",
+          label: t("workbenchSearch"),
+          icon: <Icon id="search" size="lg" />,
+          view: searchView ?? <LazyExplorer />,
+        },
         {
           id: "source-control",
           label: t("workbenchSourceControl"),
-          icon: "⑂",
-          view: <LazyExplorer />,
+          icon: <Icon id="source-control" size="lg" />,
+          view: <LazySourceControl />,
         },
       ],
-    [activities, t],
+    [activities, explorerView, searchView, t],
   );
   const resolvedPanels = useMemo(
     () =>
@@ -177,10 +195,20 @@ export function WorkbenchShell({
             <button
               type="button"
               key={activity.id}
-              className={activity.id === activeActivity?.id ? "is-active" : undefined}
+              className={visible && activity.id === activeActivity?.id ? "is-active" : undefined}
+              data-active-activity={activity.id === activeActivity?.id}
               aria-label={activity.label}
-              aria-pressed={activity.id === activeActivity?.id}
-              onClick={() => layout.setActiveActivity(activity.id)}
+              title={activity.label}
+              aria-pressed={visible && activity.id === activeActivity?.id}
+              aria-expanded={visible && activity.id === activeActivity?.id}
+              onClick={() => {
+                if (visible && activity.id === activeActivity?.id) {
+                  layout.setPrimarySidebarVisible(false);
+                } else {
+                  layout.setActiveActivity(activity.id);
+                  layout.setPrimarySidebarVisible(true);
+                }
+              }}
             >
               <span aria-hidden="true">{activity.icon}</span>
             </button>

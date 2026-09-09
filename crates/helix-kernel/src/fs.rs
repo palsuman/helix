@@ -42,8 +42,9 @@ use helix_core::health::{ServiceHealth, ServiceMetrics};
 use helix_fs::commands::{
     CANCEL_SEARCH, FsListRequest, FsListResponse, FsReadRequest, FsReadResponse, FsStatRequest,
     FsStatResponse, FsUnwatchRequest, FsUnwatchResponse, FsWatchRequest, FsWatchResponse,
-    FsWriteRequest, FsWriteResponse, LIST, READ, REPLACE, ReplaceRequest, SEARCH, SEARCH_STATS,
-    STAT, SearchResponse, SearchStatsResponse, UNDO_REPLACE, UNWATCH, UndoRequest, WATCH, WRITE,
+    FsWriteRequest, FsWriteResponse, LIST, QUICK_OPEN, QuickOpenQuery, QuickOpenResponse, READ,
+    REPLACE, ReplaceRequest, SEARCH, SEARCH_STATS, STAT, SearchResponse, SearchStatsResponse,
+    UNDO_REPLACE, UNWATCH, UndoRequest, WATCH, WRITE,
 };
 use helix_fs::{
     CHANNEL, ChangeListener, DEFAULT_PATH_BUDGET, Encoding, ExclusionConfig, FileChange,
@@ -139,6 +140,7 @@ pub fn build_service(config: &ConfigService, logger: Arc<Logger>) -> Arc<FileSys
 /// that worker — which is exactly the 5ms p95 budget in REQ-NFR-001 being missed
 /// for reasons unrelated to the request that missed it.
 pub fn register_commands(dispatcher: &mut IpcDispatcher, fs: Arc<FileSystemService>) {
+    crate::explorer::register(dispatcher, fs.clone());
     let read_fs = fs.clone();
     dispatcher.register(READ, move |req: FsReadRequest, _ctx| {
         let fs = read_fs.clone();
@@ -209,6 +211,20 @@ pub fn register_search_commands(
     search: Arc<SearchService>,
     hub: Arc<StreamHub>,
 ) {
+    let quick_open_search = search.clone();
+    dispatcher.register(QUICK_OPEN, move |req: QuickOpenQuery, _ctx| {
+        let search = quick_open_search.clone();
+        async move {
+            let (matches, indexing) = blocking(move || {
+                search
+                    .quick_open(&req)
+                    .map_err(|error| AppError::permanent("QUICK_OPEN_FAILED", error.to_string()))
+            })
+            .await?;
+            Ok::<QuickOpenResponse, AppError>(QuickOpenResponse { matches, indexing })
+        }
+    });
+
     let query_search = search.clone();
     let query_hub = hub.clone();
     dispatcher.register(SEARCH, move |req: SearchQuery, _ctx| {

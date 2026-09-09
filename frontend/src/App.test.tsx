@@ -12,6 +12,7 @@ function shellClient(initialLayout: WorkbenchLayout | null = null) {
   const kernel = createMockIpc();
   kernel.respond<WindowLayoutGetResponse>("window.layout.get", { layout: initialLayout });
   kernel.respond("window.layout.set", {});
+  kernel.respond("workspace.list", { workspaces: [] });
   kernel.respond("command.list", { commands: [] });
   kernel.respond("keybindings.get", {
     user: [],
@@ -157,13 +158,32 @@ describe("App", () => {
 
     expect(document.querySelectorAll(".workbench-card")).toHaveLength(4);
     expect(screen.queryByLabelText(/primary|secondary/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("Open a file to start editing.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Explorer")).not.toBeInTheDocument();
-    expect(screen.queryByText("Problems")).not.toBeInTheDocument();
+    expect(screen.getByText("No folder is open.")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Notification center, 0 notifications" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Explorer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Source Control" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh explorer" })).toBeInTheDocument();
+  });
+
+  it("mounts the workspace find and replace panel from the Search activity", async () => {
+    const kernel = shellClient();
+    kernel.respond("workspace.list", {
+      workspaces: [
+        {
+          roots: [
+            { path: "/workspace", name: "workspace", availability: "available", primary: true },
+          ],
+        },
+      ],
+    });
+    render(<App client={kernel.client} editorPath="/workspace/file.txt" />);
+    await act(async () => Promise.resolve());
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByRole("region", { name: "Workspace Search" })).toBeInTheDocument());
+    expect(await screen.findByRole("textbox", { name: "Search query" })).toBeInTheDocument();
   });
 
   it("does not mount the retired transport demo", async () => {

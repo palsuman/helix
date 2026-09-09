@@ -13,7 +13,7 @@ use crate::change::FileChange;
 use crate::encoding::Encoding;
 use crate::eol::LineEnding;
 use crate::listing::{FileEntry, Listing};
-use crate::search::{SearchMatch, SearchStats};
+use crate::search::{QuickOpenMatch, SearchMatch, SearchStats};
 use crate::service::{FileContent, WriteOutcome};
 use crate::watch::RootReport;
 
@@ -30,6 +30,7 @@ pub const SEARCH_CHANNEL: &str = "search:results";
 pub const REPLACE: &str = "search.replace";
 pub const UNDO_REPLACE: &str = "search.undo";
 pub const CANCEL_SEARCH: &str = "search.cancel";
+pub const QUICK_OPEN: &str = "search.quickOpen";
 
 /// Streaming channel carrying debounced change batches (REQ-FS-004.1).
 ///
@@ -167,7 +168,17 @@ pub struct SearchStatsResponse {
     pub stats: SearchStats,
 }
 
-pub use crate::search::{ReplaceFileResult, ReplaceRequest, ReplaceResponse, UndoRequest};
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/generated/")]
+pub struct QuickOpenResponse {
+    pub matches: Vec<QuickOpenMatch>,
+    /// True when this response came from the on-demand directory-scan fallback.
+    pub indexing: bool,
+}
+
+pub use crate::search::{
+    QuickOpenQuery, ReplaceFileResult, ReplaceRequest, ReplaceResponse, UndoRequest,
+};
 
 #[cfg(test)]
 mod tests {
@@ -180,6 +191,7 @@ mod tests {
         }
         assert_eq!(CHANNEL, "fs:changed");
         assert_eq!(SEARCH, "search.query");
+        assert_eq!(QUICK_OPEN, "search.quickOpen");
     }
 
     #[test]

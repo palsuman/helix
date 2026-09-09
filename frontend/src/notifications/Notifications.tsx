@@ -203,7 +203,7 @@ export function NotificationCenter({ onClose }: { onClose: () => void }) {
         }
       }}
     >
-      <header className="notification-center-header">
+      <header className="notification-center-header workbench-view-header">
         <h2>{t("notificationCenterTitle")}</h2>
         <div className="notification-center-tools">
           <button
@@ -240,7 +240,7 @@ export function NotificationCenter({ onClose }: { onClose: () => void }) {
         aria-live="off"
       >
         {entries.length === 0 ? (
-          <div className="notification-empty">
+          <div className="notification-empty workbench-view-empty">
             <Icon id="bell" size="lg" />
             <p>{t("notificationEmpty")}</p>
           </div>

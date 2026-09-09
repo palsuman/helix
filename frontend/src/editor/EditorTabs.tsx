@@ -17,27 +17,72 @@ import {
   type EditorTabState,
 } from "./tabs";
 import "./tabs.css";
+import { onEditorNavigation } from "./navigation";
 
 interface EditorTabsProps {
   client: IpcClient;
   initialPath?: string;
   onSplit?: () => void;
+  groupId?: string;
 }
 
 const EMPTY_STATE: EditorTabState = { tabs: [], activeId: null };
 
-export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
+import { revealInExplorer, useExplorerStore } from "../explorer/model";
+
+export function EditorTabs({
+  client,
+  initialPath,
+  onSplit,
+  groupId = "editor-1",
+}: EditorTabsProps) {
   const t = useMessage();
-  const [state, setState] = useState<EditorTabState>(() => restoreState(initialPath));
+  const [state, setState] = useState<EditorTabState>(() => restoreState(initialPath, groupId));
+  const stateRef = useRef(state);
   const saveHandlers = useRef(new Map<string, () => Promise<void>>());
   const [pendingCloseIds, setPendingCloseIds] = useState<string[]>([]);
+  const [reveal, setReveal] = useState<{ path: string; line: number; sequence: number } | null>(
+    null,
+  );
   const update = useCallback((next: EditorTabState) => setState(next), []);
 
   useEffect(() => {
-    localStorage.setItem(EDITOR_TABS_STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    stateRef.current = state;
+    localStorage.setItem(storageKey(groupId), JSON.stringify(state));
+  }, [groupId, state]);
+
+  useEffect(
+    () =>
+      onEditorNavigation((request) => {
+        if (request.groupId !== groupId) return;
+        const current = stateRef.current;
+        const next = request.path === undefined ? current : openEditorTab(current, request.path);
+        const path = request.path ?? next.tabs.find((tab) => tab.id === next.activeId)?.path;
+        stateRef.current = next;
+        setState(next);
+        const line = request.line;
+        if (line !== undefined && path !== undefined) {
+          setReveal((revealState) => ({
+            path,
+            line: Math.max(1, line),
+            sequence: (revealState?.sequence ?? 0) + 1,
+          }));
+        }
+      }),
+    [groupId],
+  );
 
   const activeTab = state.tabs.find((tab) => tab.id === state.activeId) ?? null;
+  useEffect(() => {
+    useExplorerStore.setState((current) => ({
+      activeFiles: { ...current.activeFiles, [groupId]: activeTab?.path },
+    }));
+    return () => {
+      useExplorerStore.setState((current) => ({
+        activeFiles: { ...current.activeFiles, [groupId]: undefined },
+      }));
+    };
+  }, [groupId, activeTab?.path]);
   const closeTab = useCallback(
     (id: string) => {
       const tab = state.tabs.find((candidate) => candidate.id === id);
@@ -85,7 +130,9 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
             onClick={() => update({ ...state, activeId: tab.id })}
             onDoubleClick={() => update(promoteEditorTab(state, tab.id))}
             onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => update(reorderEditorTabs(state, event.dataTransfer.getData("text/plain"), tab.id))}
+            onDrop={(event) =>
+              update(reorderEditorTabs(state, event.dataTransfer.getData("text/plain"), tab.id))
+            }
             onDragStart={(event) => event.dataTransfer.setData("text/plain", tab.id)}
             role="tab"
             title={tab.path}
@@ -93,8 +140,7 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
           >
             <span className="editor-tab__label">{tab.path.split("/").pop() || tab.path}</span>
             {tab.dirty && (
-              <span aria-label={t("editorModified")} className="editor-tab__dirty">
-              </span>
+              <span aria-label={t("editorModified")} className="editor-tab__dirty"></span>
             )}
             <span
               aria-label={t("editorCloseTab")}
@@ -105,8 +151,7 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
               }}
               role="button"
               tabIndex={0}
-            >
-            </span>
+            ></span>
           </button>
         ))}
         {state.tabs.length > 0 && (
@@ -114,7 +159,12 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
             <summary aria-label={t("editorTabOverflow")} />
             <div role="menu">
               {state.tabs.map((tab) => (
-                <button key={tab.id} onClick={() => update({ ...state, activeId: tab.id })} role="menuitem" type="button">
+                <button
+                  key={tab.id}
+                  onClick={() => update({ ...state, activeId: tab.id })}
+                  role="menuitem"
+                  type="button"
+                >
                   {tab.path}
                 </button>
               ))}
@@ -126,12 +176,35 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
         <details className="editor-tabs__actions">
           <summary aria-label={t("editorTabActions")} />
           <div role="menu">
-            <button onClick={() => update(toggleEditorTabPinned(state, activeTab.id))} type="button">{t("editorPinTab")}</button>
-            <button onClick={() => update(closeOtherEditorTabs(state, activeTab.id))} type="button">{t("editorCloseOthers")}</button>
-            <button onClick={() => update(closeEditorTabsToRight(state, activeTab.id))} type="button">{t("editorCloseToRight")}</button>
-            <button onClick={closeAll} type="button">{t("editorCloseAll")}</button>
-            <button onClick={() => closeTab(activeTab.id)} type="button">{t("editorCloseTab")}</button>
-            {onSplit && <button onClick={onSplit} type="button">{t("editorSplitRight")}</button>}
+            <button onClick={() => revealInExplorer(activeTab.path)} type="button">
+              {t("explorerReveal")}
+            </button>
+            <button
+              onClick={() => update(toggleEditorTabPinned(state, activeTab.id))}
+              type="button"
+            >
+              {t("editorPinTab")}
+            </button>
+            <button onClick={() => update(closeOtherEditorTabs(state, activeTab.id))} type="button">
+              {t("editorCloseOthers")}
+            </button>
+            <button
+              onClick={() => update(closeEditorTabsToRight(state, activeTab.id))}
+              type="button"
+            >
+              {t("editorCloseToRight")}
+            </button>
+            <button onClick={closeAll} type="button">
+              {t("editorCloseAll")}
+            </button>
+            <button onClick={() => closeTab(activeTab.id)} type="button">
+              {t("editorCloseTab")}
+            </button>
+            {onSplit && (
+              <button onClick={onSplit} type="button">
+                {t("editorSplitRight")}
+              </button>
+            )}
           </div>
         </details>
       )}
@@ -146,6 +219,8 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
                 else saveHandlers.current.delete(tab.id);
               }}
               path={tab.path}
+              revealLine={reveal?.path === tab.path ? reveal.line : undefined}
+              revealSequence={reveal?.path === tab.path ? reveal.sequence : undefined}
             />
           </div>
         ))}
@@ -153,9 +228,18 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
       </div>
       {pendingCloseId && (
         <div className="editor-tabs__prompt-backdrop">
-          <section aria-labelledby="editor-close-title" aria-modal="true" className="editor-tabs__prompt" role="dialog">
+          <section
+            aria-labelledby="editor-close-title"
+            aria-modal="true"
+            className="editor-tabs__prompt"
+            role="dialog"
+          >
             <h2 id="editor-close-title">{t("editorConfirmCloseTitle")}</h2>
-            <p>{t("editorConfirmCloseDirty", { path: state.tabs.find((tab) => tab.id === pendingCloseId)?.path ?? "" })}</p>
+            <p>
+              {t("editorConfirmCloseDirty", {
+                path: state.tabs.find((tab) => tab.id === pendingCloseId)?.path ?? "",
+              })}
+            </p>
             <div>
               <button
                 onClick={async () => {
@@ -163,9 +247,15 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
                   finishPendingClose(pendingCloseId);
                 }}
                 type="button"
-              >{t("commonSave")}</button>
-              <button onClick={() => finishPendingClose(pendingCloseId)} type="button">{t("editorDontSave")}</button>
-              <button onClick={() => setPendingCloseIds([])} type="button">{t("commonCancel")}</button>
+              >
+                {t("commonSave")}
+              </button>
+              <button onClick={() => finishPendingClose(pendingCloseId)} type="button">
+                {t("editorDontSave")}
+              </button>
+              <button onClick={() => setPendingCloseIds([])} type="button">
+                {t("commonCancel")}
+              </button>
             </div>
           </section>
         </div>
@@ -174,13 +264,19 @@ export function EditorTabs({ client, initialPath, onSplit }: EditorTabsProps) {
   );
 }
 
-function restoreState(initialPath?: string): EditorTabState {
+function storageKey(groupId: string): string {
+  return groupId === "editor-1" ? EDITOR_TABS_STORAGE_KEY : `${EDITOR_TABS_STORAGE_KEY}.${groupId}`;
+}
+
+function restoreState(initialPath?: string, groupId = "editor-1"): EditorTabState {
   if (typeof localStorage !== "undefined") {
     try {
-      const restored = parseEditorTabs(JSON.parse(localStorage.getItem(EDITOR_TABS_STORAGE_KEY) ?? "null"));
+      const restored = parseEditorTabs(
+        JSON.parse(localStorage.getItem(storageKey(groupId)) ?? "null"),
+      );
       if (restored) return initialPath ? openEditorTab(restored, initialPath) : restored;
     } catch {
-      localStorage.removeItem(EDITOR_TABS_STORAGE_KEY);
+      localStorage.removeItem(storageKey(groupId));
     }
   }
   return initialPath ? openEditorTab(EMPTY_STATE, initialPath) : EMPTY_STATE;

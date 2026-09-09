@@ -213,6 +213,15 @@ fn renderer(
 
 pub fn builtin_commands() -> Vec<CommandDescriptor> {
     let mut commands = vec![
+        renderer("workbench.action.revealInExplorer", "Reveal in Explorer", "View", None, None, None),
+        renderer(
+            "workbench.action.quickOpen",
+            "Go to File",
+            "View",
+            None,
+            None,
+            Some("Ctrl+P"),
+        ),
         renderer(
             "workbench.action.showCommands",
             "Show All Commands",

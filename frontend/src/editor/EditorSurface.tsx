@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { useMessage } from "../localization";
 import type { IpcClient } from "../ipc";
 import { readEditorFile, writeEditorFile, type EditorFile } from "./fileService";
-import { hasConflictMarkers, normalizeText, type AutoSaveMode, type BufferLifecycleOptions } from "./lifecycle";
+import {
+  hasConflictMarkers,
+  normalizeText,
+  type AutoSaveMode,
+  type BufferLifecycleOptions,
+} from "./lifecycle";
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "./settings";
 import { FindReplaceBar, type FindSelection } from "./FindReplaceBar";
 import { setSearchState } from "./findReplace";
@@ -33,6 +38,8 @@ export interface EditorSurfaceProps {
   autoSaveDelayMs?: number;
   saveOptions?: BufferLifecycleOptions;
   onDropPath?: (path: string, isDirectory: boolean) => void;
+  revealLine?: number;
+  revealSequence?: number;
 }
 
 interface MonacoModel {
@@ -50,13 +57,20 @@ interface MonacoEditor {
   onDidScrollChange?(listener: () => void): { dispose(): void };
   restoreViewState?(state: unknown): void;
   saveViewState?(): unknown;
+  setPosition?(position: { lineNumber: number; column: number }): void;
+  revealLineInCenter?(lineNumber: number): void;
+  focus?(): void;
   dispose(): void;
 }
+
+import { useExplorerStore } from "../explorer/model";
 
 interface MonacoApi {
   editor: {
     createModel(value: string, language: string, uri: unknown): MonacoModel;
     create(container: HTMLElement, options: Record<string, unknown>): MonacoEditor;
+    onDidChangeMarkers?(listener: () => void): { dispose(): void };
+    getModelMarkers?(filter: Record<string, never>): Array<{ resource: { fsPath: string } }>;
   };
   Uri: { parse(value: string): unknown };
   KeyMod: { CtrlCmd: number };
@@ -114,6 +128,8 @@ export function EditorSurface({
   autoSaveDelayMs = 1_000,
   saveOptions,
   onDropPath,
+  revealLine,
+  revealSequence,
 }: EditorSurfaceProps) {
   const t = useMessage();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -125,8 +141,15 @@ export function EditorSurface({
   const dirtyRef = useRef(false);
   const [dirty, setDirty] = useState(false);
   const [findMode, setFindMode] = useState<"find" | "replace" | null>(null);
-  const [findBindings, setFindBindings] = useState<{ model: MonacoModel; editor: MonacoEditor } | null>(null);
-  const [state, setState] = useState<EditorState>({ kind: "loading", file: null, largeFile: false });
+  const [findBindings, setFindBindings] = useState<{
+    model: MonacoModel;
+    editor: MonacoEditor;
+  } | null>(null);
+  const [state, setState] = useState<EditorState>({
+    kind: "loading",
+    file: null,
+    largeFile: false,
+  });
 
   useEffect(() => {
     onSaveReadyRef.current = onSaveReady;
@@ -176,13 +199,35 @@ export function EditorSurface({
           editor.onDidChangeCursorPosition?.(persistViewState),
           editor.onDidScrollChange?.(persistViewState),
         ].filter((listener): listener is { dispose(): void } => listener !== undefined);
+        const updateDiagnostics = () => {
+          const diagnostics: Record<string, number> = {};
+          for (const marker of monaco.editor.getModelMarkers?.({}) ?? []) {
+            const markerPath = marker.resource.fsPath.replace(/\\/g, "/");
+            diagnostics[markerPath] = (diagnostics[markerPath] ?? 0) + 1;
+          }
+          useExplorerStore.setState({ diagnostics });
+        };
+        const markerListener = monaco.editor.onDidChangeMarkers?.(updateDiagnostics);
+        if (markerListener) {
+          viewStateListenersRef.current.push(markerListener);
+          updateDiagnostics();
+        }
         model.onDidChangeContent(() => {
           dirtyRef.current = true;
           setDirty(true);
           onDirtyChange?.(true);
         });
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-          void saveModel(client, fileRef, modelRef, dirtyRef, setDirty, onDirtyChange, onSaved, saveOptions);
+          void saveModel(
+            client,
+            fileRef,
+            modelRef,
+            dirtyRef,
+            setDirty,
+            onDirtyChange,
+            onSaved,
+            saveOptions,
+          );
         });
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => {
           setSearchState({ replaceMode: false });
@@ -192,7 +237,18 @@ export function EditorSurface({
           setSearchState({ replaceMode: true });
           setFindMode("replace");
         });
-        onSaveReadyRef.current?.(() => saveModel(client, fileRef, modelRef, dirtyRef, setDirty, onDirtyChange, onSaved, saveOptions));
+        onSaveReadyRef.current?.(() =>
+          saveModel(
+            client,
+            fileRef,
+            modelRef,
+            dirtyRef,
+            setDirty,
+            onDirtyChange,
+            onSaved,
+            saveOptions,
+          ),
+        );
         setState({ kind: "ready", file, largeFile });
       } catch (error) {
         if (!cancelled) {
@@ -230,6 +286,14 @@ export function EditorSurface({
   }, [onDirtyChange, recovery]);
 
   useEffect(() => {
+    if (revealLine === undefined || state.kind !== "ready") return;
+    const lineNumber = Math.max(1, Math.floor(revealLine));
+    editorRef.current?.setPosition?.({ lineNumber, column: 1 });
+    editorRef.current?.revealLineInCenter?.(lineNumber);
+    editorRef.current?.focus?.();
+  }, [revealLine, revealSequence, state.kind]);
+
+  useEffect(() => {
     if (!heartbeat) return;
     const timer = window.setInterval(() => {
       void heartbeat().then((alive) => {
@@ -244,7 +308,16 @@ export function EditorSurface({
     const save = () => {
       const text = modelRef.current?.getValue() ?? "";
       if (hasConflictMarkers(text)) return;
-      void saveModel(client, fileRef, modelRef, dirtyRef, setDirty, onDirtyChange, onSaved, saveOptions);
+      void saveModel(
+        client,
+        fileRef,
+        modelRef,
+        dirtyRef,
+        setDirty,
+        onDirtyChange,
+        onSaved,
+        saveOptions,
+      );
     };
     if (autoSave === "afterDelay") {
       const timer = window.setTimeout(save, autoSaveDelayMs);
@@ -261,7 +334,16 @@ export function EditorSurface({
     if (autoSave !== "onFocusChange" || !dirty) return;
     const text = modelRef.current?.getValue() ?? "";
     if (!hasConflictMarkers(text)) {
-      void saveModel(client, fileRef, modelRef, dirtyRef, setDirty, onDirtyChange, onSaved, saveOptions);
+      void saveModel(
+        client,
+        fileRef,
+        modelRef,
+        dirtyRef,
+        setDirty,
+        onDirtyChange,
+        onSaved,
+        saveOptions,
+      );
     }
   };
 
@@ -283,9 +365,7 @@ export function EditorSurface({
       {state.kind === "error" && (
         <p role="alert">{t("editorUnableToOpen", { path, message: state.message ?? "" })}</p>
       )}
-      {state.kind === "binary" && (
-        <p role="status">{t("editorBinaryReadonly")}</p>
-      )}
+      {state.kind === "binary" && <p role="status">{t("editorBinaryReadonly")}</p>}
       {state.kind === "ready" && state.largeFile && (
         <p className="editor-notice" role="status">
           {t("editorLargeFileMode")}

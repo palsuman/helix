@@ -570,7 +570,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: search a 10k-file project with results inside 200ms, preview the replacement diff, replace across 50 files, then undo the whole operation in one step_
     - _Requirements: REQ-ED-002_
 
-  - [ ] 4.7 Implement quick open
+  - [x] 4.7 Implement quick open
     - Ctrl/Cmd+P overlay backed by the path index from 4.5
     - Fuzzy path matching across all roots with recent files prioritized
     - Mode prefixes: `@` document symbols, `#` workspace symbols, `:` line number, `>` command palette
@@ -586,7 +586,7 @@ Every task cites the requirements it satisfies. Every requirement (except the ex
     - _Demo: open a file by partial name, jump to a symbol with `@`, jump to line 42 with `:42`, and switch to command mode with `>`_
     - _Requirements: REQ-WB-002_
 
-  - [ ] 4.8 Implement file explorer
+  - [x] 4.8 Implement file explorer
     - Virtualized tree holding 100k+ nodes at 60fps
     - Tree data served from the kernel, paginated
     - CRUD: new file, new folder, inline rename, delete with confirmation, duplicate

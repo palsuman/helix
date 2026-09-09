@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IpcRequest } from "../generated/IpcRequest";
 import { IpcClient, type InvokeFn } from "../ipc";
@@ -61,6 +61,27 @@ describe("WorkbenchShell", () => {
     vi.useRealTimers();
   });
 
+  it("toggles the active sidebar and reopens it after closing its header", async () => {
+    const { client } = layoutClient();
+    render(<WorkbenchShell client={client} showLayoutControls={false} />);
+    await act(async () => Promise.resolve());
+    const explorer = screen.getByRole("button", { name: "Explorer" });
+    fireEvent.click(explorer);
+    expect(screen.queryByRole("complementary", { name: "Left panel" })).toBeNull();
+    expect(explorer).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(explorer);
+    fireEvent.click(await screen.findByRole("button", { name: "Hide left panel" }));
+    expect(screen.queryByRole("complementary", { name: "Left panel" })).toBeNull();
+    expect(explorer).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Source Control" }));
+    expect(await screen.findByRole("region", { name: "Source Control" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hide left panel" }));
+    expect(screen.queryByRole("complementary", { name: "Left panel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByRole("complementary", { name: "Left panel" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Search" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("renders the complete shell and supports at most four editor groups", async () => {
     const { client } = layoutClient();
     render(<WorkbenchShell client={client} editor={<p>editor remains available</p>} />);
@@ -106,7 +127,11 @@ describe("WorkbenchShell", () => {
     const { client } = layoutClient();
     render(<WorkbenchShell client={client} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide left panel" }));
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Left activity rail" })).getByRole("button", {
+        name: "Hide left panel",
+      }),
+    );
 
     expect(screen.queryByRole("complementary", { name: "Left panel" })).not.toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Right panel" })).toBeInTheDocument();

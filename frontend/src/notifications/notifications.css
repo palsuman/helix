@@ -157,14 +157,6 @@
   animation: notification-progress 1.1s ease-in-out infinite;
 }
 
-.workbench-activity .notification-center-button {
-  display: grid;
-  flex: 0 0 36px;
-  height: 36px;
-  place-items: center;
-  padding: 0;
-}
-
 .notification-center-button .notification-center-badge {
   position: absolute;
   top: 1px;
@@ -192,19 +184,6 @@
   background: var(--helix-foreground-muted, #9da0a8);
 }
 
-.workbench-sidebar--right:has(.notification-center) {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.workbench-sidebar--right > div:has(> .notification-center) {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .notification-center {
   display: flex;
   flex: 1;
@@ -215,29 +194,6 @@
   overflow: hidden;
   background: var(--helix-card-background, #1e1f22);
   color: var(--helix-foreground, #dfe1e5);
-}
-
-.notification-center-header {
-  display: flex;
-  height: var(--workbench-header-height, 36px);
-  flex-shrink: 0;
-  min-height: var(--workbench-header-height, 36px);
-  flex-basis: var(--workbench-header-height, 36px);
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 1px solid var(--helix-card-border, #393b40);
-  padding: 4px 8px 4px 12px;
-}
-
-.notification-center-header h2 {
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: 0;
 }
 
 .notification-center-tools {
@@ -297,24 +253,6 @@
   border-radius: 0;
   padding: 12px;
   box-shadow: none;
-}
-
-.notification-empty {
-  display: flex;
-  flex: 1;
-  min-height: 120px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 20px;
-  color: var(--helix-foreground-muted, #9da0a8);
-  font-size: 12px;
-}
-
-.notification-empty p {
-  margin: 0;
-  text-align: center;
 }
 
 @keyframes notification-progress {

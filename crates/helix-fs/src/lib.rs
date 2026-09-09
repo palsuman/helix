@@ -67,7 +67,10 @@ pub use exclude::{DEFAULT_EXCLUDE_GLOBS, ExclusionConfig, Exclusions};
 pub use hash::{ContentHash, hash_bytes, hash_file};
 pub use listing::{FileEntry, Listing};
 pub use probe::{NETWORK_LATENCY_THRESHOLD, POLL_INTERVAL, ProbeOutcome};
-pub use search::{SearchIndex, SearchMatch, SearchQuery, SearchService, SearchStats};
+pub use search::{
+    QuickOpenMatch, QuickOpenQuery, SearchIndex, SearchMatch, SearchQuery, SearchService,
+    SearchStats,
+};
 pub use service::{
     DEFAULT_MAX_READ_BYTES, FileContent, FileSystemService, FsConfig, FsMetrics, WriteOptions,
     WriteOutcome,

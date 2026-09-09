@@ -8,6 +8,7 @@
 pub mod command;
 pub mod config;
 pub mod fs;
+pub mod explorer;
 pub mod ipc;
 pub mod keybindings;
 pub mod log;

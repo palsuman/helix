@@ -9,6 +9,7 @@ import {
 } from "../workbench";
 import type { CommandRegistry } from "./registry";
 import { useLayoutStore } from "../workbench/layoutStore";
+import { revealInExplorer } from "../explorer/model";
 
 function argumentsObject(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
@@ -29,6 +30,9 @@ function profileName(argumentsValue: unknown, message: string): string | undefin
 }
 
 export function registerWorkbenchCommandHandlers(registry: CommandRegistry): void {
+  registry.registerHandler("workbench.action.revealInExplorer", (args) =>
+    revealInExplorer(stringArgument(args, "path")),
+  );
   registry.registerHandler("workbench.action.togglePanel", () => {
     const layout = useLayoutStore.getState();
     layout.setPanelVisible(!layout.panelVisible);
