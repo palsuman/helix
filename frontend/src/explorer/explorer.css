@@ -16,9 +16,13 @@
 .file-explorer .workbench-view-tools button {
   display: grid;
   place-items: center;
-  width: 24px;
+  width: 28px;
   height: 28px;
   padding: 0;
+}
+.file-explorer .workbench-view-tools .icon {
+  width: 17px;
+  height: 17px;
 }
 .file-explorer button:hover {
   background: var(--helix-hover-background, #32343a);

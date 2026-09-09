@@ -323,9 +323,12 @@ button {
 }
 
 .workbench-view-header h2 {
+  flex: 1;
   min-width: 0;
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;

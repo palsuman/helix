@@ -145,8 +145,8 @@ function LocalizedWorkbench({
               className="workbench-brand-logo"
               src="/helix-logo.svg"
               alt={t("helixLogo")}
-              width={24}
-              height={24}
+              width={30}
+              height={30}
               draggable={false}
             />
           )}

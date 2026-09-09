@@ -385,7 +385,7 @@ export function FileExplorer({
             disabled={busy || !roots.length}
             onClick={() => begin("newFile")}
           >
-            <Icon id="add" />
+            <Icon id="file-plus" />
           </button>
           <button
             type="button"
@@ -394,7 +394,7 @@ export function FileExplorer({
             disabled={busy || !roots.length}
             onClick={() => begin("newFolder")}
           >
-            <Icon id="folder" />
+            <Icon id="folder-plus" />
           </button>
           <button
             type="button"
@@ -403,7 +403,7 @@ export function FileExplorer({
             disabled={busy}
             onClick={refresh}
           >
-            <Icon id="reset" />
+            <Icon id="refresh" />
           </button>
           <button
             type="button"
@@ -411,7 +411,7 @@ export function FileExplorer({
             aria-label={t("explorerCollapse")}
             onClick={() => setExpanded(new Set())}
           >
-            <Icon id="chevron-right" />
+            <Icon id="collapse-all" />
           </button>
           <ClosePrimaryPanelButton />
         </div>

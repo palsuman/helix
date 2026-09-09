@@ -11,11 +11,14 @@ export type IconId =
   "chevron-right" |
   "clear-all" |
   "close" |
+  "collapse-all" |
   "edit" |
   "error" |
   "explorer" |
+  "file-plus" |
   "file" |
   "folder-open" |
+  "folder-plus" |
   "folder" |
   "info" |
   "keyboard" |
@@ -23,6 +26,7 @@ export type IconId =
   "panel-side" |
   "placeholder" |
   "record" |
+  "refresh" |
   "reset" |
   "search" |
   "source-control" |
@@ -55,11 +59,14 @@ export const KNOWN_ICON_IDS = [
   "chevron-right",
   "clear-all",
   "close",
+  "collapse-all",
   "edit",
   "error",
   "explorer",
+  "file-plus",
   "file",
   "folder-open",
+  "folder-plus",
   "folder",
   "info",
   "keyboard",
@@ -67,6 +74,7 @@ export const KNOWN_ICON_IDS = [
   "panel-side",
   "placeholder",
   "record",
+  "refresh",
   "reset",
   "search",
   "source-control",
@@ -81,6 +89,7 @@ export const KNOWN_ICON_IDS = [
 /** Directional icons mirrored automatically when the document is RTL. */
 export const RTL_MIRRORED_ICON_IDS = [
   "chevron-right",
+  "collapse-all",
   "panel-side",
   "swap-horizontal",
 ] as const satisfies readonly IconId[];
