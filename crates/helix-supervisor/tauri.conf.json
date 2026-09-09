@@ -13,11 +13,14 @@
     "windows": [
       {
         "label": "main",
-        "title": "Helix",
+        "title": "",
         "width": 1200,
         "height": 800,
         "minWidth": 1024,
-        "minHeight": 600
+        "minHeight": 600,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 16, "y": 22.5 }
       }
     ],
     "security": {

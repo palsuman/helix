@@ -148,6 +148,7 @@ describe("App", () => {
 
     expect(screen.getByTestId("workbench")).toBeInTheDocument();
     expect(screen.getByRole("banner", { name: "Title bar" })).toHaveClass("workbench-titlebar");
+    expect(screen.getByText("Helix IDE")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Left activity rail" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Right activity rail" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Left panel" })).toBeInTheDocument();

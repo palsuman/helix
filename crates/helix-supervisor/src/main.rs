@@ -184,7 +184,7 @@ fn spawn_native_window(
         .and_then(|value| value.as_bool())
         .unwrap_or(false);
     WebviewWindowBuilder::new(app, id, WebviewUrl::App("index.html".into()))
-        .title("Helix")
+        .title("")
         .inner_size(width, height)
         .position(x, y)
         .min_inner_size(1024.0, 600.0)

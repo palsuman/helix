@@ -20,6 +20,7 @@ import { navigateEditor } from "./editor/navigation";
 import { WorkspaceSearchPanel } from "./search";
 import { listWorkspaces } from "./workbench/commands";
 import type { WorkspaceRoot } from "./generated/WorkspaceRoot";
+import { detectPlatform } from "./keybindings/schemes";
 
 const LazyEditorTabs = lazy(() =>
   import("./editor/EditorTabs").then((module) => ({ default: module.EditorTabs })),
@@ -112,6 +113,7 @@ function LocalizedWorkbench({
   editorPath,
 }: AppProps) {
   const t = useMessage();
+  const isMac = detectPlatform() === "mac";
   useTheme(streamClient, themeService);
   injectIconStyles();
   const notificationsOpen = useLayoutStore((layout) =>
@@ -137,14 +139,53 @@ function LocalizedWorkbench({
       client={client}
       windowId={windowId}
       titleBar={
-        <img
-          className="workbench-brand-logo"
-          src="/helix-logo.svg"
-          alt={t("helixLogo")}
-          width={24}
-          height={24}
-          draggable={false}
-        />
+        <div className={`workbench-appbar${isMac ? " workbench-appbar--mac" : ""}`} data-tauri-drag-region>
+          {!isMac && (
+            <img
+              className="workbench-brand-logo"
+              src="/helix-logo.svg"
+              alt={t("helixLogo")}
+              width={24}
+              height={24}
+              draggable={false}
+            />
+          )}
+          {!isMac && <span className="workbench-appbar-title">{t("helixLogo")}</span>}
+          {!isMac && (
+            <div className="workbench-window-controls">
+              <button
+                type="button"
+                className="workbench-window-control"
+                aria-label="Minimize"
+                onClick={() => getCurrentWindow().minimize()}
+              >
+                <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor">
+                  <rect width="10" height="1" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="workbench-window-control"
+                aria-label="Maximize"
+                onClick={() => getCurrentWindow().toggleMaximize()}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1">
+                  <rect x="0.5" y="0.5" width="9" height="9" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="workbench-window-control workbench-window-control--close"
+                aria-label="Close"
+                onClick={() => getCurrentWindow().close()}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <path d="M1 1L9 9M9 1L1 9" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
       }
       overlay={
         <>

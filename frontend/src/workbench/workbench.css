@@ -73,6 +73,85 @@ button {
   align-items: center;
   padding: 0 12px;
   user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.workbench-appbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--workbench-foreground);
+}
+
+.workbench-appbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 700px) {
+  .workbench-appbar-title { display: none; }
+}
+
+@supports selector(:has(*)) {
+  .workbench:has(.workbench-appbar--mac) .workbench-titlebar {
+    height: 38px;
+    flex-basis: 38px;
+    padding-inline-start: 78px;
+    padding-inline-end: 12px;
+    background: var(--workbench-frame-background);
+  }
+
+  .workbench:has(.workbench-appbar--mac) .workbench-appbar-title {
+    display: none;
+  }
+}
+
+.workbench-window-controls,
+.workbench-window-control,
+.workbench-appbar button,
+.workbench-appbar a,
+.workbench-appbar input,
+.workbench-appbar select {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.workbench-window-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+  height: 100%;
+}
+
+.workbench-window-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--workbench-foreground);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.workbench-window-control:hover {
+  background: color-mix(in srgb, var(--workbench-foreground) 10%, transparent);
+}
+
+.workbench-window-control--close:hover {
+  background: #e81123;
+  color: white;
+}
+
+.workbench-window-control svg {
+  display: block;
 }
 
 .workbench-brand-logo {
